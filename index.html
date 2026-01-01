@@ -41,6 +41,7 @@
 <details open><summary>🏷️ Labels</summary><table id="labelTable"></table></details>
 
 <script>
+/* ---------- MASTER DATA ---------- */
 const products = {
   "Toraja Soul": "Toraja Sapan",
   "Gayo Sunset": "Gayo Wine",
@@ -132,12 +133,14 @@ function generateBOM() {
     const qty = Number(r.cells[3].children[0].value);
     const bean = products[product];
 
-    const sizeLabel = size === "18g" ? "18 g"
-                     : size === "1pc" ? "1 pc"
-                     : `${size} ${variant === "Drip" ? "pcs" : "g"}`;
+    const sizeLabel =
+      size === "18g" ? "18 g" :
+      size === "1pc" ? "1 pc" :
+      `${size} ${variant === "Drip" ? "pcs" : "g"}`;
 
     summaryText.push(`${variant} ${sizeLabel} – ${product} × ${qty}`);
-    document.getElementById("summaryList").innerHTML += `<li>${variant} ${sizeLabel} – ${product} × ${qty}</li>`;
+    document.getElementById("summaryList").innerHTML +=
+      `<li>${variant} ${sizeLabel} – ${product} × ${qty}</li>`;
 
     /* ---- COFFEE ---- */
     let coffeeKey, coffeeQty;
@@ -151,20 +154,24 @@ function generateBOM() {
     }
     if (variant === "Drip") {
       coffeeKey = `${bean} beans`;
-      coffeeQty = size === "1pc" ? DRIP_DOSE * qty : Number(size) * DRIP_DOSE * qty;
+      coffeeQty = size === "1pc"
+        ? DRIP_DOSE * qty
+        : Number(size) * DRIP_DOSE * qty;
     }
     add("coffee", coffeeKey, coffeeQty, "g");
 
     /* ---- PACKAGING ---- */
     let pack;
     if (size === "18g" || size === "1pc") pack = "S size sachet";
-    else if ((variant === "Drip" && size === "5") || (variant !== "Drip" && Number(size) <= 200))
+    else if ((variant === "Drip" && size === "5") ||
+             (variant !== "Drip" && Number(size) <= 200))
       pack = "M size bag";
     else pack = "L size bag";
     add("packaging", pack, qty, "pcs");
 
     if (variant === "Drip") {
-      add("packaging", "Drip filter", size === "1pc" ? qty : Number(size) * qty, "pcs");
+      add("packaging", "Drip filter",
+        size === "1pc" ? qty : Number(size) * qty, "pcs");
     }
 
     /* ---- LABELS ---- */
@@ -182,7 +189,8 @@ function render(id, data) {
   const t = document.getElementById(id);
   t.innerHTML = "<tr><th>Material</th><th>Qty</th><th>Unit</th></tr>";
   for (let k in data)
-    t.innerHTML += `<tr><td>${k}</td><td>${data[k].qty}</td><td>${data[k].unit}</td></tr>`;
+    t.innerHTML +=
+      `<tr><td>${k}</td><td>${data[k].qty}</td><td>${data[k].unit}</td></tr>`;
 }
 
 /* ---------- CSV ---------- */
