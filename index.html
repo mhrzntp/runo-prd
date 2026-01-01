@@ -90,7 +90,7 @@ const products = {
 
 const DRIP_DOSE = 10;
 
-/* ---------- BOM DATA ---------- */
+/* ---------- DATA ---------- */
 let bom = { coffee: {}, packaging: {}, label: {} };
 let summaryText = [];
 let generatedTime = "";
@@ -98,17 +98,16 @@ let generatedTime = "";
 /* ---------- SIZE OPTIONS ---------- */
 function getSizeOptions(variant) {
   if (variant === "Drip") {
-    return `
-      <option value="5">5 pcs</option>
-      <option value="10">10 pcs</option>
-    `;
-  } else {
-    return `
-      <option value="100">100 g</option>
-      <option value="200">200 g</option>
-      <option value="500">500 g</option>
-    `;
+    return [
+      { value: 5, label: "5 pcs" },
+      { value: 10, label: "10 pcs" }
+    ];
   }
+  return [
+    { value: 100, label: "100 g" },
+    { value: 200, label: "200 g" },
+    { value: 500, label: "500 g" }
+  ];
 }
 
 /* ---------- UI ---------- */
@@ -125,7 +124,7 @@ function addRow() {
       </select>
     </td>
     <td>
-      <select>${getSizeOptions("Beans")}</select>
+      <select></select>
     </td>
     <td>
       <select>${Object.keys(products).map(p => `<option>${p}</option>`).join("")}</select>
@@ -133,21 +132,33 @@ function addRow() {
     <td><input type="number" value="1" min="1"></td>
     <td><button onclick="this.parentElement.parentElement.remove()">❌</button></td>
   `;
+
+  // initialize size correctly
+  updateSizeOptions(row.cells[0].children[0]);
 }
 
 function updateSizeOptions(variantSelect) {
   const row = variantSelect.parentElement.parentElement;
   const sizeSelect = row.cells[1].children[0];
-  sizeSelect.innerHTML = getSizeOptions(variantSelect.value);
+  const options = getSizeOptions(variantSelect.value);
+
+  sizeSelect.innerHTML = "";
+  options.forEach(opt => {
+    const o = document.createElement("option");
+    o.value = opt.value;
+    o.textContent = opt.label;
+    sizeSelect.appendChild(o);
+  });
+
+  // force valid default
+  sizeSelect.selectedIndex = 0;
 }
 
 addRow();
 
 /* ---------- BOM LOGIC ---------- */
 function add(group, name, qty, unit) {
-  if (!bom[group][name]) {
-    bom[group][name] = { qty: 0, unit };
-  }
+  if (!bom[group][name]) bom[group][name] = { qty: 0, unit };
   bom[group][name].qty += qty;
 }
 
@@ -176,7 +187,6 @@ function generateBOM() {
     li.textContent = summaryLine;
     document.getElementById("summaryList").appendChild(li);
 
-    /* Coffee */
     if (variant === "Beans" || variant === "Ground") {
       add("coffee", `${bean} ${variant.toLowerCase()} coffee`, size * qty, "g");
       add("packaging", "Valve bag", qty, "pcs");
