@@ -78,6 +78,7 @@
 </details>
 
 <script>
+/* ---------- PRODUCT MASTER ---------- */
 const products = {
   "Toraja Soul": { bean: "Toraja Sapan" },
   "Gayo Sunset": { bean: "Gayo Wine" },
@@ -88,25 +89,65 @@ const products = {
 };
 
 const DRIP_DOSE = 10;
+
+/* ---------- BOM DATA ---------- */
 let bom = { coffee: {}, packaging: {}, label: {} };
 let summaryText = [];
 let generatedTime = "";
 
+/* ---------- SIZE OPTIONS ---------- */
+function getSizeOptions(variant) {
+  if (variant === "Drip") {
+    return `
+      <option value="5">5 pcs</option>
+      <option value="10">10 pcs</option>
+    `;
+  } else {
+    return `
+      <option value="100">100 g</option>
+      <option value="200">200 g</option>
+      <option value="500">500 g</option>
+    `;
+  }
+}
+
+/* ---------- UI ---------- */
 function addRow() {
   const table = document.getElementById("planTable");
   const row = table.insertRow();
+
   row.innerHTML = `
-    <td><select><option>Beans</option><option>Ground</option><option>Drip</option></select></td>
-    <td><select><option>100</option><option>200</option><option>500</option><option>5</option><option>10</option></select></td>
-    <td><select>${Object.keys(products).map(p => `<option>${p}</option>`).join("")}</select></td>
+    <td>
+      <select onchange="updateSizeOptions(this)">
+        <option>Beans</option>
+        <option>Ground</option>
+        <option>Drip</option>
+      </select>
+    </td>
+    <td>
+      <select>${getSizeOptions("Beans")}</select>
+    </td>
+    <td>
+      <select>${Object.keys(products).map(p => `<option>${p}</option>`).join("")}</select>
+    </td>
     <td><input type="number" value="1" min="1"></td>
     <td><button onclick="this.parentElement.parentElement.remove()">❌</button></td>
   `;
 }
+
+function updateSizeOptions(variantSelect) {
+  const row = variantSelect.parentElement.parentElement;
+  const sizeSelect = row.cells[1].children[0];
+  sizeSelect.innerHTML = getSizeOptions(variantSelect.value);
+}
+
 addRow();
 
+/* ---------- BOM LOGIC ---------- */
 function add(group, name, qty, unit) {
-  if (!bom[group][name]) bom[group][name] = { qty: 0, unit };
+  if (!bom[group][name]) {
+    bom[group][name] = { qty: 0, unit };
+  }
   bom[group][name].qty += qty;
 }
 
@@ -127,24 +168,26 @@ function generateBOM() {
     const qty = Number(row.cells[3].children[0].value);
     const bean = products[product].bean;
 
-    const summaryLine = `${variant} ${size}${variant === "Drip" ? " pcs" : "g"} – ${product} × ${qty}`;
+    const sizeLabel = variant === "Drip" ? `${size} pcs` : `${size} g`;
+    const summaryLine = `${variant} ${sizeLabel} – ${product} × ${qty}`;
     summaryText.push(summaryLine);
 
     const li = document.createElement("li");
     li.textContent = summaryLine;
     document.getElementById("summaryList").appendChild(li);
 
+    /* Coffee */
     if (variant === "Beans" || variant === "Ground") {
       add("coffee", `${bean} ${variant.toLowerCase()} coffee`, size * qty, "g");
       add("packaging", "Valve bag", qty, "pcs");
-      add("label", "Branding label", qty, "pcs");
+      add("label", `${product} – ${variant}`, qty, "pcs");
     }
 
     if (variant === "Drip") {
       add("coffee", `${bean} beans`, size * DRIP_DOSE * qty, "g");
       add("packaging", "Drip filter", size * qty, "pcs");
       add("packaging", "Standing pouch", qty, "pcs");
-      add("label", "Branding label", qty, "pcs");
+      add("label", `${product} – Drip`, qty, "pcs");
       add("label", "Instruction label", qty, "pcs");
     }
   });
@@ -163,6 +206,7 @@ function render(tableId, data) {
   }
 }
 
+/* ---------- CSV EXPORT ---------- */
 function downloadCSV() {
   let csv = `# Runo Production BOM\n# Generated at: ${generatedTime}\n`;
   summaryText.forEach(s => csv += `# ${s}\n`);
