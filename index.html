@@ -3,38 +3,13 @@
 <head>
   <title>Runo Production Planner</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 30px auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 6px;
-      text-align: center;
-    }
-    select, input, button {
-      padding: 5px;
-    }
-    details {
-      margin-top: 15px;
-      border: 1px solid #ccc;
-      padding: 10px;
-    }
-    summary {
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .meta {
-      margin-top: 15px;
-      padding: 10px;
-      background: #f5f5f5;
-    }
+    body { font-family: Arial; max-width: 900px; margin: 30px auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    select, input, button { padding: 5px; }
+    details { margin-top: 15px; border: 1px solid #ccc; padding: 10px; }
+    summary { font-weight: bold; cursor: pointer; }
+    .meta { margin-top: 15px; padding: 10px; background: #f5f5f5; }
   </style>
 </head>
 <body>
@@ -56,62 +31,69 @@
 <button onclick="downloadCSV()">Download BOM (CSV)</button>
 
 <div class="meta">
-  <strong>Generated at:</strong> <span id="generatedAt">-</span>
-  <br><br>
+  <strong>Generated at:</strong> <span id="generatedAt">-</span><br><br>
   <strong>Production Summary:</strong>
   <ul id="summaryList"></ul>
 </div>
 
-<details open>
-  <summary>☕ Coffee</summary>
-  <table id="coffeeTable"></table>
-</details>
-
-<details open>
-  <summary>📦 Packaging</summary>
-  <table id="packagingTable"></table>
-</details>
-
-<details open>
-  <summary>🏷️ Labels</summary>
-  <table id="labelTable"></table>
-</details>
+<details open><summary>☕ Coffee</summary><table id="coffeeTable"></table></details>
+<details open><summary>📦 Packaging</summary><table id="packagingTable"></table></details>
+<details open><summary>🏷️ Labels</summary><table id="labelTable"></table></details>
 
 <script>
+/* ---------- MASTER DATA ---------- */
 const products = {
-  "Toraja Soul": { bean: "Toraja Sapan" },
-  "Gayo Sunset": { bean: "Gayo Wine" },
-  "Preanger Sweets": { bean: "Red Preanger" },
-  "Ijen Dawn": { bean: "Ijen Raung" },
-  "Kerinci Breeze": { bean: "Kerinci" },
-  "Sumatera Classic": { bean: "Lampung Jantan" }
+  "Toraja Soul": "Toraja Sapan",
+  "Gayo Sunset": "Gayo Wine",
+  "Preanger Sweets": "Red Preanger",
+  "Ijen Dawn": "Ijen Raung",
+  "Kerinci Breeze": "Kerinci",
+  "Sumatera Classic": "Lampung Jantan"
 };
 
 const DRIP_DOSE = 10;
+const SACHET_DOSE = 18;
 
-let bom = { coffee: {}, packaging: {}, label: {} };
-let summaryText = [];
-let generatedTime = "";
+let bom, summaryText, generatedTime;
 
+/* ---------- SIZE OPTIONS ---------- */
 function getSizeOptions(variant) {
-  return variant === "Drip"
-    ? [{ v: 5, l: "5 pcs" }, { v: 10, l: "10 pcs" }]
-    : [{ v: 100, l: "100 g" }, { v: 200, l: "200 g" }, { v: 500, l: "500 g" }];
+  if (variant === "Drip") {
+    return [
+      { v: "sachet", l: "Sachet (1 pc)" },
+      { v: 5, l: "5 pcs" },
+      { v: 10, l: "10 pcs" }
+    ];
+  }
+  return [
+    { v: "sachet", l: "Sachet (18 g)" },
+    { v: 100, l: "100 g" },
+    { v: 200, l: "200 g" },
+    { v: 500, l: "500 g" }
+  ];
 }
 
+/* ---------- UI ---------- */
 function addRow() {
   const row = document.getElementById("planTable").insertRow();
   row.innerHTML = `
-    <td><select onchange="updateSizeOptions(this)"><option>Beans</option><option>Ground</option><option>Drip</option></select></td>
+    <td>
+      <select onchange="updateSize(this)">
+        <option>Beans</option>
+        <option>Ground</option>
+        <option>Drip</option>
+      </select>
+    </td>
     <td><select></select></td>
     <td><select>${Object.keys(products).map(p => `<option>${p}</option>`).join("")}</select></td>
     <td><input type="number" value="1" min="1"></td>
     <td><button onclick="this.parentElement.parentElement.remove()">❌</button></td>
   `;
-  updateSizeOptions(row.cells[0].children[0]);
+  updateSize(row.cells[0].children[0]);
 }
+addRow();
 
-function updateSizeOptions(sel) {
+function updateSize(sel) {
   const sizeSel = sel.parentElement.parentElement.cells[1].children[0];
   sizeSel.innerHTML = "";
   getSizeOptions(sel.value).forEach(o => {
@@ -123,55 +105,76 @@ function updateSizeOptions(sel) {
   sizeSel.selectedIndex = 0;
 }
 
-addRow();
-
-function add(group, name, qty, unit) {
-  if (!bom[group][name]) bom[group][name] = { qty: 0, unit };
-  bom[group][name].qty += qty;
-}
-
-function generateBOM() {
+/* ---------- BOM HELPERS ---------- */
+function resetBOM() {
   bom = { coffee: {}, packaging: {}, label: {} };
   summaryText = [];
+}
+
+function add(group, key, qty, unit) {
+  if (!bom[group][key]) bom[group][key] = { qty: 0, unit };
+  bom[group][key].qty += qty;
+}
+
+/* ---------- MAIN LOGIC ---------- */
+function generateBOM() {
+  resetBOM();
   document.getElementById("summaryList").innerHTML = "";
 
   generatedTime = new Date().toLocaleString();
   document.getElementById("generatedAt").textContent = generatedTime;
 
-  document.querySelectorAll("#planTable tr").forEach((row, i) => {
+  document.querySelectorAll("#planTable tr").forEach((r, i) => {
     if (i === 0) return;
 
-    const variant = row.cells[0].children[0].value;
-    const size = Number(row.cells[1].children[0].value);
-    const product = row.cells[2].children[0].value;
-    const qty = Number(row.cells[3].children[0].value);
-    const bean = products[product].bean;
+    const variant = r.cells[0].children[0].value;
+    const size = r.cells[1].children[0].value;
+    const product = r.cells[2].children[0].value;
+    const qty = Number(r.cells[3].children[0].value);
+    const bean = products[product];
 
-    const sizeLabel = variant === "Drip" ? `${size} pcs` : `${size} g`;
-    const line = `${variant} ${sizeLabel} – ${product} × ${qty}`;
-    summaryText.push(line);
+    summaryText.push(`${variant} ${size} – ${product} × ${qty}`);
+    document.getElementById("summaryList").innerHTML += `<li>${variant} ${size} – ${product} × ${qty}</li>`;
 
-    const li = document.createElement("li");
-    li.textContent = line;
-    document.getElementById("summaryList").appendChild(li);
+    let coffeeKey, coffeeQty, pack;
 
+    /* ---- COFFEE ---- */
     if (variant === "Beans") {
-      add("coffee", `${bean} beans`, size * qty, "g");
-      add("packaging", "Valve bag", qty, "pcs");
-      add("label", `${product} – Beans`, qty, "pcs");
+      coffeeKey = `${bean} beans`;
+      coffeeQty = size === "sachet" ? SACHET_DOSE * qty : size * qty;
     }
 
     if (variant === "Ground") {
-      add("coffee", `${bean} ground coffee`, size * qty, "g");
-      add("packaging", "Valve bag", qty, "pcs");
-      add("label", `${product} – Ground`, qty, "pcs");
+      coffeeKey = `${bean} ground coffee`;
+      coffeeQty = size === "sachet" ? SACHET_DOSE * qty : size * qty;
     }
 
     if (variant === "Drip") {
-      add("coffee", `${bean} beans`, size * DRIP_DOSE * qty, "g");
-      add("packaging", "Drip filter", size * qty, "pcs");
-      add("packaging", "Standing pouch", qty, "pcs");
-      add("label", `${product} – Drip`, qty, "pcs");
+      coffeeKey = `${bean} beans`;
+      coffeeQty = size === "sachet"
+        ? DRIP_DOSE * qty
+        : size * DRIP_DOSE * qty;
+    }
+
+    add("coffee", coffeeKey, coffeeQty, "g");
+
+    /* ---- PACKAGING ---- */
+    if (size === "sachet") {
+      pack = "S size sachet";
+    } else if ((variant === "Drip" && size == 5) || (variant !== "Drip" && size <= 200)) {
+      pack = "M size bag";
+    } else {
+      pack = "L size bag";
+    }
+    add("packaging", pack, qty, "pcs");
+
+    if (variant === "Drip") {
+      add("packaging", "Drip filter", size === "sachet" ? qty : size * qty, "pcs");
+    }
+
+    /* ---- LABELS ---- */
+    add("label", `${product} – ${variant}`, qty, "pcs");
+    if (variant === "Drip") {
       add("label", "Instruction label", qty, "pcs");
     }
   });
@@ -181,25 +184,23 @@ function generateBOM() {
   render("labelTable", bom.label);
 }
 
+/* ---------- RENDER ---------- */
 function render(id, data) {
   const t = document.getElementById(id);
   t.innerHTML = "<tr><th>Material</th><th>Qty</th><th>Unit</th></tr>";
   for (let k in data) {
-    const r = t.insertRow();
-    r.innerHTML = `<td>${k}</td><td>${data[k].qty}</td><td>${data[k].unit}</td>`;
+    t.innerHTML += `<tr><td>${k}</td><td>${data[k].qty}</td><td>${data[k].unit}</td></tr>`;
   }
 }
 
+/* ---------- CSV ---------- */
 function downloadCSV() {
   let csv = `# Runo Production BOM\n# Generated at: ${generatedTime}\n`;
   summaryText.forEach(s => csv += `# ${s}\n`);
   csv += "\nCategory,Material,Quantity,Unit\n";
-
-  for (let g in bom) {
-    for (let i in bom[g]) {
+  for (let g in bom)
+    for (let i in bom[g])
       csv += `${g},${i},${bom[g][i].qty},${bom[g][i].unit}\n`;
-    }
-  }
 
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
