@@ -11,7 +11,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
+      margin-top: 10px;
     }
     th, td {
       border: 1px solid #ccc;
@@ -21,8 +21,14 @@
     select, input, button {
       padding: 5px;
     }
-    button {
-      margin-top: 10px;
+    details {
+      margin-top: 15px;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    summary {
+      font-weight: bold;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -34,8 +40,8 @@
   <tr>
     <th>Variant</th>
     <th>Size</th>
-    <th>Product (Commercial)</th>
-    <th>Quantity (pcs)</th>
+    <th>Product</th>
+    <th>Qty</th>
     <th>Action</th>
   </tr>
 </table>
@@ -44,14 +50,21 @@
 <button onclick="generateBOM()">Generate BOM</button>
 <button onclick="downloadCSV()">Download BOM (CSV)</button>
 
-<h3>Bill of Materials</h3>
-<table id="bomTable">
-  <tr>
-    <th>Material</th>
-    <th>Quantity</th>
-    <th>Unit</th>
-  </tr>
-</table>
+<!-- BOM OUTPUT -->
+<details open>
+  <summary>☕ Coffee</summary>
+  <table id="coffeeTable"></table>
+</details>
+
+<details open>
+  <summary>📦 Packaging</summary>
+  <table id="packagingTable"></table>
+</details>
+
+<details open>
+  <summary>🏷️ Labels</summary>
+  <table id="labelTable"></table>
+</details>
 
 <script>
 /* ---------- PRODUCT MASTER ---------- */
@@ -64,8 +77,7 @@ const products = {
   "Sumatera Classic": { bean: "Lampung Jantan" }
 };
 
-/* ---------- RULES ---------- */
-const DRIP_DOSE = 10; // g per bag
+const DRIP_DOSE = 10;
 
 /* ---------- UI ---------- */
 function addRow() {
@@ -101,73 +113,81 @@ function addRow() {
 
 addRow();
 
-/* ---------- BOM LOGIC ---------- */
-let bomResult = {};
+/* ---------- BOM ---------- */
+let bom = {
+  coffee: {},
+  packaging: {},
+  label: {}
+};
 
-function addMaterial(name, qty, unit) {
-  if (!bomResult[name]) {
-    bomResult[name] = { qty: 0, unit };
+function add(group, name, qty, unit) {
+  if (!bom[group][name]) {
+    bom[group][name] = { qty: 0, unit };
   }
-  bomResult[name].qty += qty;
+  bom[group][name].qty += qty;
 }
 
 function generateBOM() {
-  bomResult = {};
+  bom = { coffee: {}, packaging: {}, label: {} };
   const rows = document.querySelectorAll("#planTable tr");
-  
-  rows.forEach((row, index) => {
-    if (index === 0) return;
+
+  rows.forEach((row, i) => {
+    if (i === 0) return;
 
     const variant = row.cells[0].children[0].value;
     const size = Number(row.cells[1].children[0].value);
-    const productName = row.cells[2].children[0].value;
+    const product = row.cells[2].children[0].value;
     const qty = Number(row.cells[3].children[0].value);
-    const bean = products[productName].bean;
+    const bean = products[product].bean;
 
     if (variant === "Beans" || variant === "Ground") {
-      addMaterial(`${bean} ${variant.toLowerCase()} coffee`, size * qty, "g");
-      addMaterial("Valve bag", qty, "pcs");
-      addMaterial("Branding label", qty, "pcs");
+      add("coffee", `${bean} ${variant.toLowerCase()} coffee`, size * qty, "g");
+      add("packaging", "Valve bag", qty, "pcs");
+      add("label", "Branding label", qty, "pcs");
     }
 
     if (variant === "Drip") {
-      const coffeeNeeded = size * DRIP_DOSE * qty;
-      addMaterial(`${bean} ground coffee`, coffeeNeeded, "g");
-      addMaterial("Drip filter", size * qty, "pcs");
-      addMaterial("Standing pouch", qty, "pcs");
-      addMaterial("Branding label", qty, "pcs");
-      addMaterial("Instruction label", qty, "pcs");
+      add("coffee", `${bean} ground coffee`, size * DRIP_DOSE * qty, "g");
+      add("packaging", "Drip filter", size * qty, "pcs");
+      add("packaging", "Standing pouch", qty, "pcs");
+      add("label", "Branding label", qty, "pcs");
+      add("label", "Instruction label", qty, "pcs");
     }
   });
 
-  renderBOM();
+  render("coffeeTable", bom.coffee);
+  render("packagingTable", bom.packaging);
+  render("labelTable", bom.label);
 }
 
-function renderBOM() {
-  const table = document.getElementById("bomTable");
+function render(tableId, data) {
+  const table = document.getElementById(tableId);
   table.innerHTML = `
     <tr>
       <th>Material</th>
-      <th>Quantity</th>
+      <th>Qty</th>
       <th>Unit</th>
     </tr>
   `;
 
-  for (let item in bomResult) {
+  for (let item in data) {
     const row = table.insertRow();
     row.innerHTML = `
       <td>${item}</td>
-      <td>${bomResult[item].qty}</td>
-      <td>${bomResult[item].unit}</td>
+      <td>${data[item].qty}</td>
+      <td>${data[item].unit}</td>
     `;
   }
 }
 
-/* ---------- CSV DOWNLOAD ---------- */
+/* ---------- CSV EXPORT ---------- */
 function downloadCSV() {
-  let csv = "Material,Quantity,Unit\n";
-  for (let item in bomResult) {
-    csv += `${item},${bomResult[item].qty},${bomResult[item].unit}\n`;
+  let csv = "Category,Material,Quantity,Unit\n";
+
+  for (let group in bom) {
+    for (let item in bom[group]) {
+      csv += `${group},${item},${bom[group][item].qty},${bom[group][item].unit}\n`;
+    }
   }
 
   const blob = new Blob([csv], { type: "text/csv" });
