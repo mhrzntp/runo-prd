@@ -177,7 +177,25 @@ function render(){
   });
 }
 
-function downloadCSV(){ alert("Next step 😉"); }
+function downloadCSV() {
+  let csv = `# Runo Production BOM\n`;
+  csv += `# Generated at: ${generatedTime}\n`;
+  summaryText.forEach(s => csv += `# ${s}\n`);
+  csv += `\nCategory,Material,Quantity,Cost\n`;
+
+  for (let g in bom) {
+    for (let m in bom[g]) {
+      const cost = bom[g][m].cost || 0;
+      csv += `${g},${m},${bom[g][m].qty},${cost}\n`;
+    }
+  }
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "runo-bom.csv";
+  a.click();
+}
 </script>
 
 </body>
