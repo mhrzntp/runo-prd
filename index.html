@@ -41,7 +41,6 @@
 <details open><summary>🏷️ Labels</summary><table id="labelTable"></table></details>
 
 <script>
-/* ---------- MASTER DATA ---------- */
 const products = {
   "Toraja Soul": "Toraja Sapan",
   "Gayo Sunset": "Gayo Wine",
@@ -60,16 +59,16 @@ let bom, summaryText, generatedTime;
 function getSizeOptions(variant) {
   if (variant === "Drip") {
     return [
-      { v: "sachet", l: "Sachet (1 pc)" },
-      { v: 5, l: "5 pcs" },
-      { v: 10, l: "10 pcs" }
+      { v: "1pc", l: "Sachet (1 pc)" },
+      { v: "5", l: "5 pcs" },
+      { v: "10", l: "10 pcs" }
     ];
   }
   return [
-    { v: "sachet", l: "Sachet (18 g)" },
-    { v: 100, l: "100 g" },
-    { v: 200, l: "200 g" },
-    { v: 500, l: "500 g" }
+    { v: "18g", l: "Sachet (18 g)" },
+    { v: "100", l: "100 g" },
+    { v: "200", l: "200 g" },
+    { v: "500", l: "500 g" }
   ];
 }
 
@@ -133,50 +132,44 @@ function generateBOM() {
     const qty = Number(r.cells[3].children[0].value);
     const bean = products[product];
 
-    summaryText.push(`${variant} ${size} – ${product} × ${qty}`);
-    document.getElementById("summaryList").innerHTML += `<li>${variant} ${size} – ${product} × ${qty}</li>`;
+    const sizeLabel = size === "18g" ? "18 g"
+                     : size === "1pc" ? "1 pc"
+                     : `${size} ${variant === "Drip" ? "pcs" : "g"}`;
 
-    let coffeeKey, coffeeQty, pack;
+    summaryText.push(`${variant} ${sizeLabel} – ${product} × ${qty}`);
+    document.getElementById("summaryList").innerHTML += `<li>${variant} ${sizeLabel} – ${product} × ${qty}</li>`;
 
     /* ---- COFFEE ---- */
+    let coffeeKey, coffeeQty;
     if (variant === "Beans") {
       coffeeKey = `${bean} beans`;
-      coffeeQty = size === "sachet" ? SACHET_DOSE * qty : size * qty;
+      coffeeQty = size === "18g" ? SACHET_DOSE * qty : Number(size) * qty;
     }
-
     if (variant === "Ground") {
       coffeeKey = `${bean} ground coffee`;
-      coffeeQty = size === "sachet" ? SACHET_DOSE * qty : size * qty;
+      coffeeQty = size === "18g" ? SACHET_DOSE * qty : Number(size) * qty;
     }
-
     if (variant === "Drip") {
       coffeeKey = `${bean} beans`;
-      coffeeQty = size === "sachet"
-        ? DRIP_DOSE * qty
-        : size * DRIP_DOSE * qty;
+      coffeeQty = size === "1pc" ? DRIP_DOSE * qty : Number(size) * DRIP_DOSE * qty;
     }
-
     add("coffee", coffeeKey, coffeeQty, "g");
 
     /* ---- PACKAGING ---- */
-    if (size === "sachet") {
-      pack = "S size sachet";
-    } else if ((variant === "Drip" && size == 5) || (variant !== "Drip" && size <= 200)) {
+    let pack;
+    if (size === "18g" || size === "1pc") pack = "S size sachet";
+    else if ((variant === "Drip" && size === "5") || (variant !== "Drip" && Number(size) <= 200))
       pack = "M size bag";
-    } else {
-      pack = "L size bag";
-    }
+    else pack = "L size bag";
     add("packaging", pack, qty, "pcs");
 
     if (variant === "Drip") {
-      add("packaging", "Drip filter", size === "sachet" ? qty : size * qty, "pcs");
+      add("packaging", "Drip filter", size === "1pc" ? qty : Number(size) * qty, "pcs");
     }
 
     /* ---- LABELS ---- */
     add("label", `${product} – ${variant}`, qty, "pcs");
-    if (variant === "Drip") {
-      add("label", "Instruction label", qty, "pcs");
-    }
+    if (variant === "Drip") add("label", "Instruction label", qty, "pcs");
   });
 
   render("coffeeTable", bom.coffee);
@@ -188,9 +181,8 @@ function generateBOM() {
 function render(id, data) {
   const t = document.getElementById(id);
   t.innerHTML = "<tr><th>Material</th><th>Qty</th><th>Unit</th></tr>";
-  for (let k in data) {
+  for (let k in data)
     t.innerHTML += `<tr><td>${k}</td><td>${data[k].qty}</td><td>${data[k].unit}</td></tr>`;
-  }
 }
 
 /* ---------- CSV ---------- */
