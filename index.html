@@ -30,6 +30,11 @@
       font-weight: bold;
       cursor: pointer;
     }
+    .meta {
+      margin-top: 15px;
+      padding: 10px;
+      background: #f5f5f5;
+    }
   </style>
 </head>
 <body>
@@ -50,7 +55,13 @@
 <button onclick="generateBOM()">Generate BOM</button>
 <button onclick="downloadCSV()">Download BOM (CSV)</button>
 
-<!-- BOM OUTPUT -->
+<div class="meta">
+  <strong>Generated at:</strong> <span id="generatedAt">-</span>
+  <br><br>
+  <strong>Production Summary:</strong>
+  <ul id="summaryList"></ul>
+</div>
+
 <details open>
   <summary>☕ Coffee</summary>
   <table id="coffeeTable"></table>
@@ -67,7 +78,6 @@
 </details>
 
 <script>
-/* ---------- PRODUCT MASTER ---------- */
 const products = {
   "Toraja Soul": { bean: "Toraja Sapan" },
   "Gayo Sunset": { bean: "Gayo Wine" },
@@ -78,60 +88,37 @@ const products = {
 };
 
 const DRIP_DOSE = 10;
+let bom = { coffee: {}, packaging: {}, label: {} };
+let summaryText = [];
+let generatedTime = "";
 
-/* ---------- UI ---------- */
 function addRow() {
   const table = document.getElementById("planTable");
   const row = table.insertRow();
-
   row.innerHTML = `
-    <td>
-      <select>
-        <option>Beans</option>
-        <option>Ground</option>
-        <option>Drip</option>
-      </select>
-    </td>
-    <td>
-      <select>
-        <option>100</option>
-        <option>200</option>
-        <option>500</option>
-        <option>5</option>
-        <option>10</option>
-      </select>
-    </td>
-    <td>
-      <select>
-        ${Object.keys(products).map(p => `<option>${p}</option>`).join("")}
-      </select>
-    </td>
+    <td><select><option>Beans</option><option>Ground</option><option>Drip</option></select></td>
+    <td><select><option>100</option><option>200</option><option>500</option><option>5</option><option>10</option></select></td>
+    <td><select>${Object.keys(products).map(p => `<option>${p}</option>`).join("")}</select></td>
     <td><input type="number" value="1" min="1"></td>
     <td><button onclick="this.parentElement.parentElement.remove()">❌</button></td>
   `;
 }
-
 addRow();
 
-/* ---------- BOM ---------- */
-let bom = {
-  coffee: {},
-  packaging: {},
-  label: {}
-};
-
 function add(group, name, qty, unit) {
-  if (!bom[group][name]) {
-    bom[group][name] = { qty: 0, unit };
-  }
+  if (!bom[group][name]) bom[group][name] = { qty: 0, unit };
   bom[group][name].qty += qty;
 }
 
 function generateBOM() {
   bom = { coffee: {}, packaging: {}, label: {} };
-  const rows = document.querySelectorAll("#planTable tr");
+  summaryText = [];
+  document.getElementById("summaryList").innerHTML = "";
 
-  rows.forEach((row, i) => {
+  generatedTime = new Date().toLocaleString();
+  document.getElementById("generatedAt").textContent = generatedTime;
+
+  document.querySelectorAll("#planTable tr").forEach((row, i) => {
     if (i === 0) return;
 
     const variant = row.cells[0].children[0].value;
@@ -140,6 +127,13 @@ function generateBOM() {
     const qty = Number(row.cells[3].children[0].value);
     const bean = products[product].bean;
 
+    const summaryLine = `${variant} ${size}${variant === "Drip" ? " pcs" : "g"} – ${product} × ${qty}`;
+    summaryText.push(summaryLine);
+
+    const li = document.createElement("li");
+    li.textContent = summaryLine;
+    document.getElementById("summaryList").appendChild(li);
+
     if (variant === "Beans" || variant === "Ground") {
       add("coffee", `${bean} ${variant.toLowerCase()} coffee`, size * qty, "g");
       add("packaging", "Valve bag", qty, "pcs");
@@ -147,7 +141,7 @@ function generateBOM() {
     }
 
     if (variant === "Drip") {
-      add("coffee", `${bean} ground coffee`, size * DRIP_DOSE * qty, "g");
+      add("coffee", `${bean} beans`, size * DRIP_DOSE * qty, "g");
       add("packaging", "Drip filter", size * qty, "pcs");
       add("packaging", "Standing pouch", qty, "pcs");
       add("label", "Branding label", qty, "pcs");
@@ -162,27 +156,17 @@ function generateBOM() {
 
 function render(tableId, data) {
   const table = document.getElementById(tableId);
-  table.innerHTML = `
-    <tr>
-      <th>Material</th>
-      <th>Qty</th>
-      <th>Unit</th>
-    </tr>
-  `;
-
+  table.innerHTML = "<tr><th>Material</th><th>Qty</th><th>Unit</th></tr>";
   for (let item in data) {
     const row = table.insertRow();
-    row.innerHTML = `
-      <td>${item}</td>
-      <td>${data[item].qty}</td>
-      <td>${data[item].unit}</td>
-    `;
+    row.innerHTML = `<td>${item}</td><td>${data[item].qty}</td><td>${data[item].unit}</td>`;
   }
 }
 
-/* ---------- CSV EXPORT ---------- */
 function downloadCSV() {
-  let csv = "Category,Material,Quantity,Unit\n";
+  let csv = `# Runo Production BOM\n# Generated at: ${generatedTime}\n`;
+  summaryText.forEach(s => csv += `# ${s}\n`);
+  csv += "\nCategory,Material,Quantity,Unit\n";
 
   for (let group in bom) {
     for (let item in bom[group]) {
@@ -191,12 +175,10 @@ function downloadCSV() {
   }
 
   const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
+  a.href = URL.createObjectURL(blob);
   a.download = "runo-bom.csv";
   a.click();
-  URL.revokeObjectURL(url);
 }
 </script>
 
