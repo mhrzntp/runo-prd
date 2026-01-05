@@ -75,9 +75,10 @@ fetch("pricing.csv")
   .then(t => {
     if (!t) return;
     t.trim().split("\n").slice(1).forEach(l => {
-      const [cat, mat, price] = l.split(",");
-      pricing[`${cat}|${mat}`] = Number(price) || 0;
-    });
+  const parts = l.includes(";") ? l.split(";") : l.split(",");
+  const [cat, mat, price] = parts.map(p => p.trim());
+  pricing[`${cat}|${mat}`] = Number(price) || 0;
+});
   });
 
 /* ===== SIZE OPTIONS ===== */
