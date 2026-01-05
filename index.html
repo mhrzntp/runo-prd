@@ -33,6 +33,7 @@
 <button onclick="downloadPricingTemplate()">Download Pricing Template</button>
 
 <div class="meta">
+  <strong>BoM Name:</strong> <span id="bomName">-</span><br>
   <strong>Generated at:</strong> <span id="generatedAt">-</span><br><br>
   <strong>Production Summary:</strong>
   <ul id="summaryList"></ul>
@@ -71,6 +72,7 @@ let bom = { coffee:{}, packaging:{}, label:{} };
 let pricing = {};
 let summaryText = [];
 let generatedTime = "";
+let bomName = "";
 
 /* ===== AUTO LOAD PRICING (comma + semicolon safe) ===== */
 fetch("pricing.csv")
@@ -84,6 +86,15 @@ fetch("pricing.csv")
       pricing[`${cat}|${mat}`] = Number(price) || 0;
     });
   });
+
+/* ===== UTIL: BUILD BOM NAME ===== */
+function buildBoMName(date) {
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mmm = months[date.getMonth()];
+  const yy = String(date.getFullYear()).slice(-2);
+  return `BoM-${dd}-${mmm}-${yy}`;
+}
 
 /* ===== SIZE OPTIONS ===== */
 function getSizeOptions(v) {
@@ -145,8 +156,13 @@ function generateBOM(){
   bom={coffee:{},packaging:{},label:{}};
   summaryText=[];
   document.getElementById("summaryList").innerHTML="";
-  generatedTime=new Date().toLocaleString();
-  document.getElementById("generatedAt").textContent=generatedTime;
+
+  const now = new Date();
+  generatedTime = now.toLocaleString();
+  bomName = buildBoMName(now);
+
+  document.getElementById("generatedAt").textContent = generatedTime;
+  document.getElementById("bomName").textContent = bomName;
 
   document.querySelectorAll("#planTable tr").forEach((r,i)=>{
     if(i===0) return;
@@ -157,7 +173,8 @@ function generateBOM(){
     const bean=products[p];
 
     summaryText.push(`${v} ${s} – ${p} × ${q}`);
-    document.getElementById("summaryList").innerHTML+=`<li>${v} ${s} – ${p} × ${q}</li>`;
+    document.getElementById("summaryList").innerHTML+=
+      `<li>${v} ${s} – ${p} × ${q}</li>`;
 
     let ck="", cq=0;
     if(v==="Beans"){ck=`${bean} beans`; cq=s==="18g"?18*q:Number(s)*q;}
@@ -166,10 +183,13 @@ function generateBOM(){
     add("coffee",ck,cq);
 
     if(s==="18g"||s==="1pc") add("packaging","S size sachet",q);
-    else if((v==="Drip"&&s==="5")||(v!=="Drip"&&Number(s)<=200)) add("packaging","M size bag",q);
+    else if((v==="Drip"&&s==="5")||(v!=="Drip"&&Number(s)<=200))
+      add("packaging","M size bag",q);
     else add("packaging","L size bag",q);
 
-    if(v==="Drip") add("packaging","Drip filter",s==="1pc"?q:Number(s)*q);
+    if(v==="Drip")
+      add("packaging","Drip filter",s==="1pc"?q:Number(s)*q);
+
     add("label",`${p} – ${v}`,q);
     if(v==="Drip") add("label","Instruction label",q);
   });
@@ -208,7 +228,6 @@ function renderAll(){
   });
 }
 
-/* ===== PROCUREMENT SUMMARY ===== */
 function renderProcurement(){
   const t=document.getElementById("procurementTable");
   t.innerHTML="<tr><th>Material</th><th>Total Qty</th><th>Total Cost</th></tr>";
@@ -230,13 +249,17 @@ function renderProcurement(){
 
 /* ===== CSV ===== */
 function downloadBOM(){
-  let csv=`# Runo Production BOM\n# Generated at: ${generatedTime}\n`;
+  let csv=`# ${bomName}\n# Generated at: ${generatedTime}\n`;
   summaryText.forEach(s=>csv+=`# ${s}\n`);
   csv+=`\nCategory,Material,Quantity,Cost\n`;
   for(let g in bom)
     for(let m in bom[g])
       csv+=`${g},${m},${bom[g][m].qty},${bom[g][m].cost}\n`;
-  trigger(csv,"runo-bom.csv");
+
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=`${bomName}.csv`;
+  a.click();
 }
 
 function downloadPricingTemplate(){
@@ -249,13 +272,10 @@ function downloadPricingTemplate(){
   Object.keys(products).forEach(p=>{
     r.push(`label,${p} – Beans,`,`label,${p} – Ground,`,`label,${p} – Drip,`);
   });
-  trigger(r.join("\n"),"pricing-template.csv");
-}
-
-function trigger(c,f){
   const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([c],{type:"text/csv"}));
-  a.download=f; a.click();
+  a.href=URL.createObjectURL(new Blob([r.join("\n")],{type:"text/csv"}));
+  a.download="pricing-template.csv";
+  a.click();
 }
 </script>
 
