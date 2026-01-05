@@ -6,7 +6,7 @@
     body { font-family: Arial; max-width: 1000px; margin: 30px auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-    select, input, button { padding: 5px; }
+    select, input, button { padding: 5px; margin-right: 5px; }
     details { margin-top: 15px; border: 1px solid #ccc; padding: 10px; }
     summary { font-weight: bold; cursor: pointer; }
     .meta { margin-top: 15px; padding: 10px; background: #f5f5f5; }
@@ -31,6 +31,7 @@
 <button onclick="generateBOM()">Generate BOM</button>
 <button onclick="downloadBOM()">Download BOM (CSV)</button>
 <button onclick="downloadPricingTemplate()">Download Pricing Template</button>
+<button onclick="saveBOM()">💾 Save BoM</button>
 
 <div class="meta">
   <strong>BoM Name:</strong> <span id="bomName">-</span><br>
@@ -74,7 +75,7 @@ let summaryText = [];
 let generatedTime = "";
 let bomName = "";
 
-/* ===== AUTO LOAD PRICING (comma + semicolon safe) ===== */
+/* ===== LOAD PRICING (comma & semicolon safe) ===== */
 fetch("pricing.csv")
   .then(r => r.ok ? r.text() : "")
   .then(t => {
@@ -87,16 +88,12 @@ fetch("pricing.csv")
     });
   });
 
-/* ===== UTIL: BUILD BOM NAME ===== */
+/* ===== UTIL ===== */
 function buildBoMName(date) {
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mmm = months[date.getMonth()];
-  const yy = String(date.getFullYear()).slice(-2);
-  return `BoM-${dd}-${mmm}-${yy}`;
+  return `BoM-${String(date.getDate()).padStart(2,"0")}-${months[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
 }
 
-/* ===== SIZE OPTIONS ===== */
 function getSizeOptions(v) {
   return v === "Drip"
     ? [{v:"1pc",l:"1 pc"},{v:"5",l:"5 pcs"},{v:"10",l:"10 pcs"}]
@@ -157,12 +154,12 @@ function generateBOM(){
   summaryText=[];
   document.getElementById("summaryList").innerHTML="";
 
-  const now = new Date();
-  generatedTime = now.toLocaleString();
-  bomName = buildBoMName(now);
+  const now=new Date();
+  generatedTime=now.toLocaleString();
+  bomName=buildBoMName(now);
 
-  document.getElementById("generatedAt").textContent = generatedTime;
-  document.getElementById("bomName").textContent = bomName;
+  document.getElementById("bomName").textContent=bomName;
+  document.getElementById("generatedAt").textContent=generatedTime;
 
   document.querySelectorAll("#planTable tr").forEach((r,i)=>{
     if(i===0) return;
@@ -173,8 +170,7 @@ function generateBOM(){
     const bean=products[p];
 
     summaryText.push(`${v} ${s} – ${p} × ${q}`);
-    document.getElementById("summaryList").innerHTML+=
-      `<li>${v} ${s} – ${p} × ${q}</li>`;
+    document.getElementById("summaryList").innerHTML+=`<li>${summaryText.at(-1)}</li>`;
 
     let ck="", cq=0;
     if(v==="Beans"){ck=`${bean} beans`; cq=s==="18g"?18*q:Number(s)*q;}
@@ -183,12 +179,10 @@ function generateBOM(){
     add("coffee",ck,cq);
 
     if(s==="18g"||s==="1pc") add("packaging","S size sachet",q);
-    else if((v==="Drip"&&s==="5")||(v!=="Drip"&&Number(s)<=200))
-      add("packaging","M size bag",q);
+    else if((v==="Drip"&&s==="5")||(v!=="Drip"&&Number(s)<=200)) add("packaging","M size bag",q);
     else add("packaging","L size bag",q);
 
-    if(v==="Drip")
-      add("packaging","Drip filter",s==="1pc"?q:Number(s)*q);
+    if(v==="Drip") add("packaging","Drip filter",s==="1pc"?q:Number(s)*q);
 
     add("label",`${p} – ${v}`,q);
     if(v==="Drip") add("label","Instruction label",q);
@@ -204,8 +198,7 @@ function calculateCost(){
   let totals={coffee:0,packaging:0,label:0};
   for(let g in bom){
     for(let m in bom[g]){
-      const p=pricing[`${g}|${m}`]||0;
-      const c=bom[g][m].qty*p;
+      const c=bom[g][m].qty*(pricing[`${g}|${m}`]||0);
       bom[g][m].cost=c;
       totals[g]+=c;
     }
@@ -213,8 +206,7 @@ function calculateCost(){
   document.getElementById("coffeeCost").textContent=totals.coffee.toLocaleString();
   document.getElementById("packagingCost").textContent=totals.packaging.toLocaleString();
   document.getElementById("labelCost").textContent=totals.label.toLocaleString();
-  document.getElementById("totalCost").textContent=
-    (totals.coffee+totals.packaging+totals.label).toLocaleString();
+  document.getElementById("totalCost").textContent=(totals.coffee+totals.packaging+totals.label).toLocaleString();
 }
 
 /* ===== RENDER ===== */
@@ -223,8 +215,7 @@ function renderAll(){
     const t=document.getElementById(g+"Table");
     t.innerHTML="<tr><th>Material</th><th>Qty</th><th>Cost</th></tr>";
     for(let m in bom[g])
-      t.innerHTML+=
-        `<tr><td>${m}</td><td>${bom[g][m].qty}</td><td>${bom[g][m].cost.toLocaleString()}</td></tr>`;
+      t.innerHTML+=`<tr><td>${m}</td><td>${bom[g][m].qty}</td><td>${bom[g][m].cost.toLocaleString()}</td></tr>`;
   });
 }
 
@@ -232,7 +223,6 @@ function renderProcurement(){
   const t=document.getElementById("procurementTable");
   t.innerHTML="<tr><th>Material</th><th>Total Qty</th><th>Total Cost</th></tr>";
   let merged={};
-
   for(let g in bom){
     for(let m in bom[g]){
       if(!merged[m]) merged[m]={qty:0,cost:0};
@@ -240,11 +230,33 @@ function renderProcurement(){
       merged[m].cost+=bom[g][m].cost;
     }
   }
+  for(let m in merged)
+    t.innerHTML+=`<tr><td>${m}</td><td>${merged[m].qty}</td><td>${merged[m].cost.toLocaleString()}</td></tr>`;
+}
 
-  for(let m in merged){
-    t.innerHTML+=
-      `<tr><td>${m}</td><td>${merged[m].qty}</td><td>${merged[m].cost.toLocaleString()}</td></tr>`;
-  }
+/* ===== SAVE TO GOOGLE SHEETS ===== */
+function saveBOM(){
+  if(!bomName){ alert("Generate BoM first"); return; }
+
+  const payload={
+    bomName:bomName,
+    generatedAt:generatedTime,
+    summary:summaryText,
+    totalCost:Number(document.getElementById("totalCost").textContent.replace(/,/g,"")),
+    bom:bom
+  };
+
+  fetch("https://script.google.com/macros/s/AKfycbwDYTJflve3D2zBI68ETM_s0_tkinBYWI3NZlNpTTsFB9xhAqrBzR-SpWrTzGLuZ9P5tw/exec",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify(payload)
+  })
+  .then(r=>r.json())
+  .then(res=>{
+    if(res.status==="ok") alert("BoM saved to Google Drive ✅");
+    else alert("Save failed: "+res.message);
+  })
+  .catch(()=>alert("Failed to save BoM ❌"));
 }
 
 /* ===== CSV ===== */
@@ -265,8 +277,7 @@ function downloadBOM(){
 function downloadPricingTemplate(){
   let r=["category,material,price_per_unit"];
   Object.values(products).forEach(b=>{
-    r.push(`coffee,${b} beans,`);
-    r.push(`coffee,${b} ground coffee,`);
+    r.push(`coffee,${b} beans,`,`coffee,${b} ground coffee,`);
   });
   r.push("packaging,S size sachet,","packaging,M size bag,","packaging,L size bag,","packaging,Drip filter,","label,Instruction label,");
   Object.keys(products).forEach(p=>{
