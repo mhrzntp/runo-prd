@@ -3,7 +3,7 @@
 <head>
   <title>Runo Production Planner</title>
   <style>
-    body { font-family: Arial; max-width: 900px; margin: 30px auto; }
+    body { font-family: Arial; max-width: 1000px; margin: 30px auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
     select, input, button { padding: 5px; }
@@ -38,6 +38,9 @@
   <ul id="summaryList"></ul>
 </div>
 
+<h3>🧾 Procurement Summary</h3>
+<table id="procurementTable"></table>
+
 <details open><summary>☕ Coffee</summary><table id="coffeeTable"></table></details>
 <details open><summary>📦 Packaging</summary><table id="packagingTable"></table></details>
 <details open><summary>🏷️ Labels</summary><table id="labelTable"></table></details>
@@ -69,7 +72,7 @@ let pricing = {};
 let summaryText = [];
 let generatedTime = "";
 
-/* ===== AUTO LOAD PRICING (COMMA + SEMICOLON SAFE) ===== */
+/* ===== AUTO LOAD PRICING (comma + semicolon safe) ===== */
 fetch("pricing.csv")
   .then(r => r.ok ? r.text() : "")
   .then(t => {
@@ -173,6 +176,7 @@ function generateBOM(){
 
   calculateCost();
   renderAll();
+  renderProcurement();
 }
 
 /* ===== COST ===== */
@@ -186,10 +190,11 @@ function calculateCost(){
       totals[g]+=c;
     }
   }
-  document.getElementById("coffeeCost").textContent=totals.coffee.toFixed(0);
-  document.getElementById("packagingCost").textContent=totals.packaging.toFixed(0);
-  document.getElementById("labelCost").textContent=totals.label.toFixed(0);
-  document.getElementById("totalCost").textContent=(totals.coffee+totals.packaging+totals.label).toFixed(0);
+  document.getElementById("coffeeCost").textContent=totals.coffee.toLocaleString();
+  document.getElementById("packagingCost").textContent=totals.packaging.toLocaleString();
+  document.getElementById("labelCost").textContent=totals.label.toLocaleString();
+  document.getElementById("totalCost").textContent=
+    (totals.coffee+totals.packaging+totals.label).toLocaleString();
 }
 
 /* ===== RENDER ===== */
@@ -198,8 +203,29 @@ function renderAll(){
     const t=document.getElementById(g+"Table");
     t.innerHTML="<tr><th>Material</th><th>Qty</th><th>Cost</th></tr>";
     for(let m in bom[g])
-      t.innerHTML+=`<tr><td>${m}</td><td>${bom[g][m].qty}</td><td>${bom[g][m].cost.toFixed(0)}</td></tr>`;
+      t.innerHTML+=
+        `<tr><td>${m}</td><td>${bom[g][m].qty}</td><td>${bom[g][m].cost.toLocaleString()}</td></tr>`;
   });
+}
+
+/* ===== PROCUREMENT SUMMARY ===== */
+function renderProcurement(){
+  const t=document.getElementById("procurementTable");
+  t.innerHTML="<tr><th>Material</th><th>Total Qty</th><th>Total Cost</th></tr>";
+  let merged={};
+
+  for(let g in bom){
+    for(let m in bom[g]){
+      if(!merged[m]) merged[m]={qty:0,cost:0};
+      merged[m].qty+=bom[g][m].qty;
+      merged[m].cost+=bom[g][m].cost;
+    }
+  }
+
+  for(let m in merged){
+    t.innerHTML+=
+      `<tr><td>${m}</td><td>${merged[m].qty}</td><td>${merged[m].cost.toLocaleString()}</td></tr>`;
+  }
 }
 
 /* ===== CSV ===== */
