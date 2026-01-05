@@ -8,7 +8,7 @@
       --accent-red: #D62B2B;
       --text-black: #000000;
       --text-white: #FFFFFF;
-      --border-light: #ddd;
+      --border-light: #e6e6e6;
     }
 
     body {
@@ -22,8 +22,8 @@
 
     h2 {
       font-size: 30px;
-      margin-bottom: 5px;
       text-align: center;
+      margin-bottom: 4px;
     }
 
     h3 {
@@ -46,9 +46,9 @@
     th {
       background: var(--accent-red);
       color: var(--text-white) !important;
+      font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.03em;
-      font-size: 13px;
       text-transform: uppercase;
     }
 
@@ -77,7 +77,7 @@
       box-shadow: 0 0 0 2px rgba(214,43,43,0.15);
     }
 
-    /* PRIMARY BUTTONS */
+    /* Primary buttons */
     button {
       background: var(--accent-red);
       color: var(--text-white);
@@ -89,15 +89,9 @@
       transition: all 0.2s ease;
     }
 
-    button:hover {
-      opacity: 0.9;
-    }
+    button:hover { opacity: 0.9; }
+    button:active { transform: translateY(1px); }
 
-    button:active {
-      transform: translateY(1px);
-    }
-
-    /* ADD PRODUCT BUTTON */
     .add-btn {
       display: flex;
       align-items: center;
@@ -107,11 +101,10 @@
     .add-btn .plus {
       font-size: 20px;
       font-weight: 700;
-      line-height: 1;
       color: var(--text-white);
     }
 
-    /* ROW ACTION BUTTONS */
+    /* Row action buttons */
     .action-btn {
       background: transparent;
       border: none;
@@ -125,9 +118,7 @@
       color: var(--text-black);
     }
 
-    .action-btn:hover {
-      opacity: 0.7;
-    }
+    .action-btn:hover { opacity: 0.7; }
 
     .meta {
       margin-top: 25px;
@@ -166,7 +157,7 @@
 <body>
 
 <h2>RUNO</h2>
-<p style="text-align:center; margin-top:-8px; opacity:0.7;">Production Planner</p>
+<p style="text-align:center; margin-top:-6px; opacity:0.7;">Production Planner</p>
 
 <table id="planTable">
   <tr>
@@ -192,15 +183,27 @@
   <strong>Generated At:</strong> <span id="generatedAt">-</span>
 </div>
 
-<h3>🧾 Summary (Saved to Google Sheets)</h3>
-<pre id="summaryText"></pre>
+<h3>☕ Coffee</h3>
+<table id="coffeeTable"></table>
+
+<h3>📦 Packaging</h3>
+<table id="packagingTable"></table>
+
+<h3>🏷️ Labels</h3>
+<table id="labelTable"></table>
+
+<h3>🧾 Procurement Summary</h3>
+<table id="procurementTable"></table>
 
 <div class="costbox">
   Total Cost: <span id="totalCost">0</span>
 </div>
 
+<h3>📄 Summary (Saved to Google Sheets)</h3>
+<pre id="summaryText"></pre>
+
 <script>
-/* ========= CONFIG ========= */
+/* ================= CONFIG ================= */
 const SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycby5wEVeFeCFuY43vZH_tG1U2jXc-3ZQyfaADCnPxBKS-5RwiP37oC0ciMNNkLL8eqHNVA/exec";
 
@@ -214,122 +217,173 @@ const PRODUCTS = {
 };
 
 const DRIP_DOSE = 10;
+const SACHET_DOSE = 18;
 
-/* ========= STATE ========= */
-let summaryText = "";
-let bomName = "";
-let generatedAt = "";
+/* ================= STATE ================= */
+let bom = { coffee:{}, packaging:{}, label:{} };
+let pricing = {};
+let bomName="", generatedAt="", summaryText="";
 
-/* ========= UTIL ========= */
+/* ================= LOAD PRICING ================= */
+fetch("pricing.csv")
+  .then(r => r.ok ? r.text() : "")
+  .then(t => {
+    if(!t) return;
+    t.trim().split("\n").slice(1).forEach(l => {
+      const p=l.includes(";")?l.split(";"):l.split(",");
+      pricing[`${p[0].trim()}|${p[1].trim()}`]=Number(p[2])||0;
+    });
+  });
+
+/* ================= UTIL ================= */
 function buildBoMName(d){
   const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `BOM_${String(d.getDate()).padStart(2,"0")}-${m[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
-
-function sizeOptions(v){
-  return v==="Drip" ? ["1pc","5","10"] : ["18g","100","200","500"];
+function sizeOptions(v){ return v==="Drip"?["1pc","5","10"]:["18g","100","200","500"]; }
+function add(group,name,qty){
+  if(!bom[group][name]) bom[group][name]={qty:0,cost:0};
+  bom[group][name].qty+=qty;
 }
 
-/* ========= UI ========= */
-function addRow(values=null){
+/* ================= UI ================= */
+function addRow(){
   const t=document.getElementById("planTable");
   const r=t.insertRow(-1);
   r.innerHTML=`
-    <td>
-      <select onchange="updateSize(this)">
-        <option>Beans</option>
-        <option>Ground</option>
-        <option>Drip</option>
-      </select>
-    </td>
+    <td><select onchange="updateSize(this)"><option>Beans</option><option>Ground</option><option>Drip</option></select></td>
     <td><select></select></td>
-    <td>
-      <select>
-        ${Object.keys(PRODUCTS).map(p=>`<option>${p}</option>`).join("")}
-      </select>
-    </td>
+    <td><select>${Object.keys(PRODUCTS).map(p=>`<option>${p}</option>`).join("")}</select></td>
     <td><input type="number" value="1" min="1"></td>
     <td>
-      <button class="action-btn" onclick="copyRow(this)" title="Copy">📄</button>
-      <button class="action-btn delete" onclick="this.parentElement.parentElement.remove()" title="Delete">❌</button>
-    </td>
-  `;
+      <button class="action-btn" onclick="copyRow(this)">📄</button>
+      <button class="action-btn delete" onclick="this.parentElement.parentElement.remove()">❌</button>
+    </td>`;
   updateSize(r.cells[0].children[0]);
 }
-
 function copyRow(btn){
   const r=btn.parentElement.parentElement;
-  addRow({
-    v:r.cells[0].children[0].value,
-    s:r.cells[1].children[0].value,
-    p:r.cells[2].children[0].value,
-    q:r.cells[3].children[0].value
-  });
+  addRow();
+  const nr=document.getElementById("planTable").rows.length-1;
+  const t=document.getElementById("planTable").rows[nr];
+  for(let i=0;i<4;i++) t.cells[i].children[0].value=r.cells[i].children[0].value;
 }
-
 function updateSize(sel){
   const s=sel.parentElement.parentElement.cells[1].children[0];
   s.innerHTML="";
-  sizeOptions(sel.value).forEach(v=>{
-    const o=document.createElement("option");
-    o.textContent=v;
-    s.appendChild(o);
-  });
+  sizeOptions(sel.value).forEach(v=>{const o=document.createElement("option");o.textContent=v;s.appendChild(o);});
 }
-
 addRow();
 
-/* ========= BOM ========= */
+/* ================= BOM ================= */
 function generateBOM(){
+  bom={coffee:{},packaging:{},label:{}};
   const now=new Date();
   bomName=buildBoMName(now);
   generatedAt=now.toLocaleString();
-
   document.getElementById("bomName").textContent=bomName;
   document.getElementById("generatedAt").textContent=generatedAt;
 
-  let lines=[];
+  let productLines=[];
   document.querySelectorAll("#planTable tr").forEach((r,i)=>{
     if(i===0) return;
     const v=r.cells[0].children[0].value;
     const s=r.cells[1].children[0].value;
     const p=r.cells[2].children[0].value;
-    const q=r.cells[3].children[0].value;
-    lines.push(`${q} x ${p} (${v}, ${s})`);
+    const q=Number(r.cells[3].children[0].value);
+    const bean=PRODUCTS[p];
+    productLines.push(`${q} x ${p} (${v}, ${s})`);
+
+    let grams=0;
+    if(v!=="Drip"){
+      grams=s==="18g"?18*q:Number(s)*q;
+      add("coffee",`${bean} ${v==="Beans"?"beans":"ground coffee"}`,grams);
+    } else {
+      grams=s==="1pc"?DRIP_DOSE*q:Number(s)*DRIP_DOSE*q;
+      add("coffee",`${bean} beans`,grams);
+      add("packaging","Drip filter",s==="1pc"?q:Number(s)*q);
+      add("label","Instruction label",q);
+    }
+
+    if(s==="18g"||s==="1pc") add("packaging","S size sachet",q);
+    else if((v==="Drip"&&s==="5")||(v!=="Drip"&&Number(s)<=200)) add("packaging","M size bag",q);
+    else add("packaging","L size bag",q);
+
+    add("label",`${p} – ${v}`,q);
   });
 
-  summaryText = lines.join("\n");
-  document.getElementById("summaryText").textContent = summaryText;
-  document.getElementById("totalCost").textContent = "0";
+  calculateCost();
+  renderTables();
+  buildSummary(productLines);
 }
 
-/* ========= SAVE ========= */
-function saveBOM(){
-  if(!bomName){
-    alert("Generate BoM first");
-    return;
+/* ================= COST ================= */
+function calculateCost(){
+  let total=0;
+  for(let g in bom){
+    for(let m in bom[g]){
+      const u=pricing[`${g}|${m}`]||0;
+      bom[g][m].cost=bom[g][m].qty*u;
+      total+=bom[g][m].cost;
+    }
   }
+  document.getElementById("totalCost").textContent=total.toLocaleString();
+}
 
-  const params=new URLSearchParams({
-    bomName,
-    generatedAt,
-    summary: summaryText,
-    totalCost: "0"
+/* ================= TABLES ================= */
+function renderTables(){
+  renderGroup("coffee","coffeeTable");
+  renderGroup("packaging","packagingTable");
+  renderGroup("label","labelTable");
+  const p=document.getElementById("procurementTable");
+  p.innerHTML="<tr><th>Material</th><th>Total Qty</th><th>Total Cost</th></tr>";
+  let mrg={};
+  for(let g in bom) for(let m in bom[g]){
+    if(!mrg[m]) mrg[m]={q:0,c:0};
+    mrg[m].q+=bom[g][m].qty;
+    mrg[m].c+=bom[g][m].cost;
+  }
+  for(let m in mrg) p.innerHTML+=`<tr><td>${m}</td><td>${mrg[m].q}</td><td>${mrg[m].c.toLocaleString()}</td></tr>`;
+}
+function renderGroup(g,id){
+  const t=document.getElementById(id);
+  t.innerHTML="<tr><th>Material</th><th>Qty</th><th>Cost</th></tr>";
+  for(let m in bom[g])
+    t.innerHTML+=`<tr><td>${m}</td><td>${bom[g][m].qty}</td><td>${bom[g][m].cost.toLocaleString()}</td></tr>`;
+}
+
+/* ================= SUMMARY ================= */
+function buildSummary(pl){
+  let l=["PRODUCT SUMMARY"];
+  pl.forEach(x=>l.push("- "+x));
+  l.push("\nCOFFEE"); for(let m in bom.coffee) l.push(`- ${m}: ${bom.coffee[m].qty}`);
+  l.push("\nPACKAGING"); for(let m in bom.packaging) l.push(`- ${m}: ${bom.packaging[m].qty}`);
+  l.push("\nLABELS"); for(let m in bom.label) l.push(`- ${m}: ${bom.label[m].qty}`);
+  summaryText=l.join("\n");
+  document.getElementById("summaryText").textContent=summaryText;
+}
+
+/* ================= SAVE ================= */
+function saveBOM(){
+  if(!bomName){alert("Generate BoM first");return;}
+  const p=new URLSearchParams({
+    bomName,generatedAt,summary:summaryText,
+    totalCost:document.getElementById("totalCost").textContent.replace(/,/g,"")
   });
-
-  const iframe=document.createElement("iframe");
-  iframe.style.display="none";
-  iframe.src = SCRIPT_URL + "?" + params.toString();
-  document.body.appendChild(iframe);
-
+  const i=document.createElement("iframe");
+  i.style.display="none";
+  i.src=SCRIPT_URL+"?"+p.toString();
+  document.body.appendChild(i);
   alert("BoM saved successfully ✅");
 }
 
-/* ========= CSV ========= */
+/* ================= CSV ================= */
 function downloadBOM(){
-  let csv=`${bomName}\nGenerated at: ${generatedAt}\n\n${summaryText}`;
   const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.href=URL.createObjectURL(new Blob(
+    [`${bomName}\nGenerated at: ${generatedAt}\n\n${summaryText}`],
+    {type:"text/csv"}
+  ));
   a.download=`${bomName}.csv`;
   a.click();
 }
