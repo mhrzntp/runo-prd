@@ -1,0 +1,37 @@
+pricing-template
+category;material;price_per_unit
+coffee;Toraja Sapan beans;20000
+coffee;Toraja Sapan ground coffee;20000
+coffee;Gayo Wine beans;30000
+coffee;Gayo Wine ground coffee;30000
+coffee;Red Preanger beans;26000
+coffee;Red Preanger ground coffee;26000
+coffee;Ijen Raung beans;20000
+coffee;Ijen Raung ground coffee;20000
+coffee;Kerinci beans;20000
+coffee;Kerinci ground coffee;20000
+coffee;Lampung Jantan beans;16000
+coffee;Lampung Jantan ground coffee;16000
+packaging;S size sachet;300
+packaging;M size bag;2300
+packaging;L size bag;2500
+packaging;Drip filter;600
+label;Instruction label;200
+label;Toraja Soul – Beans;700
+label;Toraja Soul – Ground;700
+label;Toraja Soul – Drip;700
+label;Gayo Sunset – Beans;700
+label;Gayo Sunset – Ground;700
+label;Gayo Sunset – Drip;700
+label;Preanger Sweets – Beans;700
+label;Preanger Sweets – Ground;700
+label;Preanger Sweets – Drip;700
+label;Ijen Dawn – Beans;700
+label;Ijen Dawn – Ground;700
+label;Ijen Dawn – Drip;700
+label;Kerinci Breeze – Beans;700
+label;Kerinci Breeze – Ground;700
+label;Kerinci Breeze – Drip;700
+label;Sumatera Classic – Beans;700
+label;Sumatera Classic – Ground;700
+label;Sumatera Classic – Drip;700
