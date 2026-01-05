@@ -1,16 +1,16 @@
 category;material;price_per_unit
-coffee;Toraja Sapan beans;20000
-coffee;Toraja Sapan ground coffee;20000
-coffee;Gayo Wine beans;30000
-coffee;Gayo Wine ground coffee;30000
-coffee;Red Preanger beans;26000
-coffee;Red Preanger ground coffee;26000
-coffee;Ijen Raung beans;20000
-coffee;Ijen Raung ground coffee;20000
-coffee;Kerinci beans;20000
-coffee;Kerinci ground coffee;20000
-coffee;Lampung Jantan beans;16000
-coffee;Lampung Jantan ground coffee;16000
+coffee;Toraja Sapan beans;200
+coffee;Toraja Sapan ground coffee;200
+coffee;Gayo Wine beans;300
+coffee;Gayo Wine ground coffee;300
+coffee;Red Preanger beans;260
+coffee;Red Preanger ground coffee;260
+coffee;Ijen Raung beans;200
+coffee;Ijen Raung ground coffee;200
+coffee;Kerinci beans;200
+coffee;Kerinci ground coffee;200
+coffee;Lampung Jantan beans;160
+coffee;Lampung Jantan ground coffee;160
 packaging;S size sachet;300
 packaging;M size bag;2300
 packaging;L size bag;2500
@@ -35,3 +35,4 @@ label;Sumatera Classic – Beans;700
 label;Sumatera Classic – Ground;700
 
 label;Sumatera Classic – Drip;700
+
