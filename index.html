@@ -1,7 +1,3 @@
-<div style="background:red;color:white;padding:10px">
-  🚨 NEW VERSION CONFIRMED 🚨
-</div>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -14,6 +10,7 @@
     details { margin-top: 15px; border: 1px solid #ccc; padding: 10px; }
     summary { font-weight: bold; cursor: pointer; }
     .meta { margin-top: 15px; padding: 10px; background: #f5f5f5; }
+    .costbox { margin-top: 20px; padding: 15px; background: #e8f5e9; }
   </style>
 </head>
 <body>
@@ -34,6 +31,7 @@
 <button onclick="generateBOM()">Generate BOM</button>
 <button onclick="downloadBOM()">Download BOM (CSV)</button>
 <button onclick="downloadPricingTemplate()">Download Pricing Template</button>
+<input type="file" id="pricingFile" accept=".csv" onchange="loadPricing(this)" />
 
 <div class="meta">
   <strong>Generated at:</strong> <span id="generatedAt">-</span><br><br>
@@ -44,6 +42,14 @@
 <details open><summary>☕ Coffee</summary><table id="coffeeTable"></table></details>
 <details open><summary>📦 Packaging</summary><table id="packagingTable"></table></details>
 <details open><summary>🏷️ Labels</summary><table id="labelTable"></table></details>
+
+<div class="costbox">
+  <strong>Cost Summary</strong><br>
+  Coffee: <span id="coffeeCost">0</span><br>
+  Packaging: <span id="packagingCost">0</span><br>
+  Labels: <span id="labelCost">0</span><br><br>
+  <strong>Total Cost: <span id="totalCost">0</span></strong>
+</div>
 
 <script>
 /* ===== MASTER DATA ===== */
@@ -60,197 +66,172 @@ const DRIP_DOSE = 10;
 const SACHET_DOSE = 18;
 
 let bom = { coffee:{}, packaging:{}, label:{} };
+let pricing = {};
 let summaryText = [];
 let generatedTime = "";
 
 /* ===== SIZE OPTIONS ===== */
-function getSizeOptions(variant) {
-  if (variant === "Drip") {
-    return [
-      { v: "1pc", l: "1 pc" },
-      { v: "5", l: "5 pcs" },
-      { v: "10", l: "10 pcs" }
-    ];
-  }
-  return [
-    { v: "18g", l: "18 g" },
-    { v: "100", l: "100 g" },
-    { v: "200", l: "200 g" },
-    { v: "500", l: "500 g" }
-  ];
+function getSizeOptions(v) {
+  return v === "Drip"
+    ? [{v:"1pc",l:"1 pc"},{v:"5",l:"5 pcs"},{v:"10",l:"10 pcs"}]
+    : [{v:"18g",l:"18 g"},{v:"100",l:"100 g"},{v:"200",l:"200 g"},{v:"500",l:"500 g"}];
 }
 
 /* ===== UI ===== */
-function addRow(values = null, insertAfter = null) {
-  const table = document.getElementById("planTable");
-  const row = table.insertRow(insertAfter ? insertAfter.rowIndex + 1 : -1);
-
-  row.innerHTML = `
-    <td>
-      <select onchange="updateSize(this)">
-        <option>Beans</option>
-        <option>Ground</option>
-        <option>Drip</option>
-      </select>
-    </td>
+function addRow(values=null, after=null){
+  const t=document.getElementById("planTable");
+  const r=t.insertRow(after?after.rowIndex+1:-1);
+  r.innerHTML=`
+    <td><select onchange="updateSize(this)"><option>Beans</option><option>Ground</option><option>Drip</option></select></td>
     <td><select></select></td>
-    <td>
-      <select>${Object.keys(products).map(p => `<option>${p}</option>`).join("")}</select>
-    </td>
+    <td><select>${Object.keys(products).map(p=>`<option>${p}</option>`).join("")}</select></td>
     <td><input type="number" value="1" min="1"></td>
     <td>
       <button onclick="copyRow(this)">📄</button>
       <button onclick="this.parentElement.parentElement.remove()">❌</button>
-    </td>
-  `;
-
-  updateSize(row.cells[0].children[0]);
-
-  if (values) {
-    row.cells[0].children[0].value = values.variant;
-    updateSize(row.cells[0].children[0]);
-    row.cells[1].children[0].value = values.size;
-    row.cells[2].children[0].value = values.product;
-    row.cells[3].children[0].value = values.qty;
+    </td>`;
+  updateSize(r.cells[0].children[0]);
+  if(values){
+    r.cells[0].children[0].value=values.variant;
+    updateSize(r.cells[0].children[0]);
+    r.cells[1].children[0].value=values.size;
+    r.cells[2].children[0].value=values.product;
+    r.cells[3].children[0].value=values.qty;
   }
 }
+addRow();
 
-function copyRow(btn) {
-  const row = btn.parentElement.parentElement;
-  const values = {
-    variant: row.cells[0].children[0].value,
-    size: row.cells[1].children[0].value,
-    product: row.cells[2].children[0].value,
-    qty: row.cells[3].children[0].value
-  };
-  addRow(values, row);
+function copyRow(btn){
+  const r=btn.parentElement.parentElement;
+  addRow({
+    variant:r.cells[0].children[0].value,
+    size:r.cells[1].children[0].value,
+    product:r.cells[2].children[0].value,
+    qty:r.cells[3].children[0].value
+  },r);
 }
 
-function updateSize(sel) {
-  const sizeSel = sel.parentElement.parentElement.cells[1].children[0];
-  sizeSel.innerHTML = "";
-  getSizeOptions(sel.value).forEach(o => {
-    const opt = document.createElement("option");
-    opt.value = o.v;
-    opt.textContent = o.l;
-    sizeSel.appendChild(opt);
+function updateSize(sel){
+  const s=sel.parentElement.parentElement.cells[1].children[0];
+  s.innerHTML="";
+  getSizeOptions(sel.value).forEach(o=>{
+    const opt=document.createElement("option");
+    opt.value=o.v; opt.textContent=o.l; s.appendChild(opt);
   });
 }
 
-addRow();
-
-/* ===== BOM LOGIC ===== */
-function add(group, name, qty) {
-  if (!bom[group][name]) bom[group][name] = { qty: 0 };
-  bom[group][name].qty += qty;
+/* ===== BOM ===== */
+function add(group,name,qty){
+  if(!bom[group][name]) bom[group][name]={qty:0,cost:0};
+  bom[group][name].qty+=qty;
 }
 
-function generateBOM() {
-  bom = { coffee:{}, packaging:{}, label:{} };
-  summaryText = [];
-  document.getElementById("summaryList").innerHTML = "";
-
-  generatedTime = new Date().toLocaleString();
-  document.getElementById("generatedAt").textContent = generatedTime;
+function generateBOM(){
+  bom={coffee:{},packaging:{},label:{}};
+  summaryText=[];
+  document.getElementById("summaryList").innerHTML="";
+  generatedTime=new Date().toLocaleString();
+  document.getElementById("generatedAt").textContent=generatedTime;
 
   document.querySelectorAll("#planTable tr").forEach((r,i)=>{
     if(i===0) return;
+    const v=r.cells[0].children[0].value;
+    const s=r.cells[1].children[0].value;
+    const p=r.cells[2].children[0].value;
+    const q=Number(r.cells[3].children[0].value);
+    const bean=products[p];
 
-    const variant=r.cells[0].children[0].value;
-    const size=r.cells[1].children[0].value;
-    const product=r.cells[2].children[0].value;
-    const qty=Number(r.cells[3].children[0].value);
-    const bean=products[product];
+    summaryText.push(`${v} ${s} – ${p} × ${q}`);
+    document.getElementById("summaryList").innerHTML+=`<li>${v} ${s} – ${p} × ${q}</li>`;
 
-    summaryText.push(`${variant} ${size} – ${product} × ${qty}`);
-    document.getElementById("summaryList").innerHTML +=
-      `<li>${variant} ${size} – ${product} × ${qty}</li>`;
+    let ck="", cq=0;
+    if(v==="Beans"){ck=`${bean} beans`; cq=s==="18g"?18*q:Number(s)*q;}
+    if(v==="Ground"){ck=`${bean} ground coffee`; cq=s==="18g"?18*q:Number(s)*q;}
+    if(v==="Drip"){ck=`${bean} beans`; cq=s==="1pc"?10*q:Number(s)*10*q;}
+    add("coffee",ck,cq);
 
-    let coffeeKey="", coffeeQty=0;
+    if(s==="18g"||s==="1pc") add("packaging","S size sachet",q);
+    else if((v==="Drip"&&s==="5")||(v!=="Drip"&&Number(s)<=200)) add("packaging","M size bag",q);
+    else add("packaging","L size bag",q);
 
-    if(variant==="Beans"){
-      coffeeKey=`${bean} beans`;
-      coffeeQty=size==="18g"?18*qty:Number(size)*qty;
-    }
-    if(variant==="Ground"){
-      coffeeKey=`${bean} ground coffee`;
-      coffeeQty=size==="18g"?18*qty:Number(size)*qty;
-    }
-    if(variant==="Drip"){
-      coffeeKey=`${bean} beans`;
-      coffeeQty=size==="1pc"?10*qty:Number(size)*10*qty;
-    }
-
-    add("coffee",coffeeKey,coffeeQty);
-
-    if(size==="18g"||size==="1pc") add("packaging","S size sachet",qty);
-    else if((variant==="Drip"&&size==="5")||(variant!=="Drip"&&Number(size)<=200))
-      add("packaging","M size bag",qty);
-    else add("packaging","L size bag",qty);
-
-    if(variant==="Drip")
-      add("packaging","Drip filter",size==="1pc"?qty:Number(size)*qty);
-
-    add("label",`${product} – ${variant}`,qty);
-    if(variant==="Drip") add("label","Instruction label",qty);
+    if(v==="Drip") add("packaging","Drip filter",s==="1pc"?q:Number(s)*q);
+    add("label",`${p} – ${v}`,q);
+    if(v==="Drip") add("label","Instruction label",q);
   });
 
-  render("coffeeTable",bom.coffee);
-  render("packagingTable",bom.packaging);
-  render("labelTable",bom.label);
+  renderAll();
 }
 
-function render(id,data){
-  const t=document.getElementById(id);
-  t.innerHTML="<tr><th>Material</th><th>Qty</th></tr>";
-  for(let k in data)
-    t.innerHTML+=`<tr><td>${k}</td><td>${data[k].qty}</td></tr>`;
+/* ===== PRICING UPLOAD ===== */
+function loadPricing(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    pricing={};
+    e.target.result.trim().split("\n").slice(1).forEach(l=>{
+      const [cat,mat,price]=l.split(",");
+      pricing[`${cat}|${mat}`]=Number(price)||0;
+    });
+    calculateCost();
+  };
+  reader.readAsText(file);
 }
 
-/* ===== CSV DOWNLOADS ===== */
+function calculateCost(){
+  let totals={coffee:0,packaging:0,label:0};
+  for(let g in bom){
+    for(let m in bom[g]){
+      const p=pricing[`${g}|${m}`]||0;
+      const c=bom[g][m].qty*p;
+      bom[g][m].cost=c;
+      totals[g]+=c;
+    }
+  }
+  document.getElementById("coffeeCost").textContent=totals.coffee.toFixed(0);
+  document.getElementById("packagingCost").textContent=totals.packaging.toFixed(0);
+  document.getElementById("labelCost").textContent=totals.label.toFixed(0);
+  document.getElementById("totalCost").textContent=(totals.coffee+totals.packaging+totals.label).toFixed(0);
+}
+
+/* ===== RENDER ===== */
+function renderAll(){
+  ["coffee","packaging","label"].forEach(g=>{
+    const t=document.getElementById(g+"Table");
+    t.innerHTML="<tr><th>Material</th><th>Qty</th><th>Cost</th></tr>";
+    for(let m in bom[g])
+      t.innerHTML+=`<tr><td>${m}</td><td>${bom[g][m].qty}</td><td>${bom[g][m].cost.toFixed(0)}</td></tr>`;
+  });
+}
+
+/* ===== CSV ===== */
 function downloadBOM(){
   let csv=`# Runo Production BOM\n# Generated at: ${generatedTime}\n`;
   summaryText.forEach(s=>csv+=`# ${s}\n`);
-  csv+=`\nCategory,Material,Quantity\n`;
+  csv+=`\nCategory,Material,Quantity,Cost\n`;
   for(let g in bom)
     for(let m in bom[g])
-      csv+=`${g},${m},${bom[g][m].qty}\n`;
-
-  triggerDownload(csv,"runo-bom.csv");
+      csv+=`${g},${m},${bom[g][m].qty},${bom[g][m].cost}\n`;
+  trigger(csv,"runo-bom.csv");
 }
 
 function downloadPricingTemplate(){
-  let rows=[
-    "category,material,price_per_unit"
-  ];
-
+  let r=["category,material,price_per_unit"];
   Object.values(products).forEach(b=>{
-    rows.push(`coffee,${b} beans,`);
-    rows.push(`coffee,${b} ground coffee,`);
+    r.push(`coffee,${b} beans,`);
+    r.push(`coffee,${b} ground coffee,`);
   });
-
-  rows.push(
-    "packaging,S size sachet,",
-    "packaging,M size bag,",
-    "packaging,L size bag,",
-    "packaging,Drip filter,",
-    "label,Instruction label,"
-  );
-
+  r.push("packaging,S size sachet,","packaging,M size bag,","packaging,L size bag,","packaging,Drip filter,","label,Instruction label,");
   Object.keys(products).forEach(p=>{
-    rows.push(`label,${p} – Beans,`);
-    rows.push(`label,${p} – Ground,`);
-    rows.push(`label,${p} – Drip,`);
+    r.push(`label,${p} – Beans,`,`label,${p} – Ground,`,`label,${p} – Drip,`);
   });
-
-  triggerDownload(rows.join("\n"),"pricing-template.csv");
+  trigger(r.join("\n"),"pricing-template.csv");
 }
 
-function triggerDownload(content,filename){
+function trigger(c,f){
   const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([content],{type:"text/csv"}));
-  a.download=filename;
-  a.click();
+  a.href=URL.createObjectURL(new Blob([c],{type:"text/csv"}));
+  a.download=f; a.click();
 }
 </script>
 
