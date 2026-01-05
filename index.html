@@ -56,7 +56,7 @@
 </div>
 
 <script>
-/* ===== MASTER DATA ===== */
+/* ================= MASTER DATA ================= */
 const products = {
   "Toraja Soul": "Toraja Sapan",
   "Gayo Sunset": "Gayo Wine",
@@ -69,13 +69,15 @@ const products = {
 const DRIP_DOSE = 10;
 const SACHET_DOSE = 18;
 
+/* ================= STATE ================= */
 let bom = { coffee:{}, packaging:{}, label:{} };
 let pricing = {};
 let summaryText = [];
 let generatedTime = "";
 let bomName = "";
+let isSaving = false;
 
-/* ===== LOAD PRICING (comma & semicolon safe) ===== */
+/* ================= LOAD PRICING ================= */
 fetch("pricing.csv")
   .then(r => r.ok ? r.text() : "")
   .then(t => {
@@ -88,19 +90,19 @@ fetch("pricing.csv")
     });
   });
 
-/* ===== UTIL ===== */
-function buildBoMName(date) {
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `BoM-${String(date.getDate()).padStart(2,"0")}-${months[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
+/* ================= UTIL ================= */
+function buildBoMName(d){
+  const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `BOM_${String(d.getDate()).padStart(2,"0")}-${m[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
 
-function getSizeOptions(v) {
-  return v === "Drip"
+function getSizeOptions(v){
+  return v==="Drip"
     ? [{v:"1pc",l:"1 pc"},{v:"5",l:"5 pcs"},{v:"10",l:"10 pcs"}]
     : [{v:"18g",l:"18 g"},{v:"100",l:"100 g"},{v:"200",l:"200 g"},{v:"500",l:"500 g"}];
 }
 
-/* ===== UI ===== */
+/* ================= UI ================= */
 function addRow(values=null, after=null){
   const t=document.getElementById("planTable");
   const r=t.insertRow(after?after.rowIndex+1:-1);
@@ -143,7 +145,7 @@ function updateSize(sel){
   });
 }
 
-/* ===== BOM ===== */
+/* ================= BOM LOGIC ================= */
 function add(group,name,qty){
   if(!bom[group][name]) bom[group][name]={qty:0,cost:0};
   bom[group][name].qty+=qty;
@@ -173,9 +175,9 @@ function generateBOM(){
     document.getElementById("summaryList").innerHTML+=`<li>${summaryText.at(-1)}</li>`;
 
     let ck="", cq=0;
-    if(v==="Beans"){ck=`${bean} beans`; cq=s==="18g"?18*q:Number(s)*q;}
-    if(v==="Ground"){ck=`${bean} ground coffee`; cq=s==="18g"?18*q:Number(s)*q;}
-    if(v==="Drip"){ck=`${bean} beans`; cq=s==="1pc"?10*q:Number(s)*10*q;}
+    if(v==="Beans"){ ck=`${bean} beans`; cq=s==="18g"?18*q:Number(s)*q; }
+    if(v==="Ground"){ ck=`${bean} ground coffee`; cq=s==="18g"?18*q:Number(s)*q; }
+    if(v==="Drip"){ ck=`${bean} beans`; cq=s==="1pc"?10*q:Number(s)*10*q; }
     add("coffee",ck,cq);
 
     if(s==="18g"||s==="1pc") add("packaging","S size sachet",q);
@@ -193,7 +195,7 @@ function generateBOM(){
   renderProcurement();
 }
 
-/* ===== COST ===== */
+/* ================= COST ================= */
 function calculateCost(){
   let totals={coffee:0,packaging:0,label:0};
   for(let g in bom){
@@ -209,7 +211,7 @@ function calculateCost(){
   document.getElementById("totalCost").textContent=(totals.coffee+totals.packaging+totals.label).toLocaleString();
 }
 
-/* ===== RENDER ===== */
+/* ================= RENDER ================= */
 function renderAll(){
   ["coffee","packaging","label"].forEach(g=>{
     const t=document.getElementById(g+"Table");
@@ -234,9 +236,12 @@ function renderProcurement(){
     t.innerHTML+=`<tr><td>${m}</td><td>${merged[m].qty}</td><td>${merged[m].cost.toLocaleString()}</td></tr>`;
 }
 
-/* ===== SAVE TO GOOGLE SHEETS ===== */
+/* ================= SAVE TO GOOGLE SHEETS ================= */
 function saveBOM(){
+  if(isSaving) return;
   if(!bomName){ alert("Generate BoM first"); return; }
+
+  isSaving = true;
 
   const payload={
     bomName:bomName,
@@ -255,11 +260,16 @@ function saveBOM(){
   .then(res=>{
     if(res.status==="ok") alert("BoM saved to Google Drive ✅");
     else alert("Save failed: "+res.message);
+    isSaving=false;
   })
-  .catch(()=>alert("Failed to save BoM ❌"));
+  .catch(err=>{
+    console.error(err);
+    alert("Failed to save BoM ❌");
+    isSaving=false;
+  });
 }
 
-/* ===== CSV ===== */
+/* ================= CSV ================= */
 function downloadBOM(){
   let csv=`# ${bomName}\n# Generated at: ${generatedTime}\n`;
   summaryText.forEach(s=>csv+=`# ${s}\n`);
