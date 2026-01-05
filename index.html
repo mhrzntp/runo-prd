@@ -1,175 +1,32 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Runo Production Planner</title>
-  <style>
-    body { font-family: Arial; max-width: 1000px; margin: 30px auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-    select, input, button { padding: 5px; margin-right: 5px; }
-    .meta { margin-top: 15px; padding: 10px; background: #f5f5f5; }
-  </style>
-</head>
-<body>
+function doGet(e) {
+  try {
+    const sheet = SpreadsheetApp
+      .getActiveSpreadsheet()
+      .getSheetByName("Records");
 
-<h2>Runo Production Planner</h2>
+    if (!sheet) {
+      throw new Error("Sheet 'Records' not found");
+    }
 
-<table id="planTable">
-  <tr>
-    <th>Variant</th>
-    <th>Size</th>
-    <th>Product</th>
-    <th>Qty</th>
-    <th>Action</th>
-  </tr>
-</table>
+    const bomName = e.parameter.bomName || "";
+    const generatedAt = e.parameter.generatedAt || "";
+    const summary = e.parameter.summary || "(no summary)";
+    const totalCost = Number(e.parameter.totalCost || 0);
 
-<button onclick="addRow()">➕ Add Product</button>
-<button onclick="generateBOM()">Generate BOM</button>
-<button onclick="saveBOM()">💾 Save BoM</button>
+    sheet.appendRow([
+      bomName,
+      generatedAt,
+      summary,
+      totalCost
+    ]);
 
-<div class="meta">
-  <strong>BoM Name:</strong> <span id="bomName">-</span><br>
-  <strong>Generated at:</strong> <span id="generatedAt">-</span><br><br>
-  <strong>Summary:</strong>
-  <ul id="summaryList"></ul>
-</div>
+    return ContentService
+      .createTextOutput("OK")
+      .setMimeType(ContentService.MimeType.TEXT);
 
-<script>
-/* ================= CONFIG ================= */
-const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycby5wEVeFeCFuY43vZH_tG1U2jXc-3ZQyfaADCnPxBKS-5RwiP37oC0ciMNNkLL8eqHNVA/exec";
-
-const products = {
-  "Toraja Soul": "Toraja Sapan",
-  "Gayo Sunset": "Gayo Wine",
-  "Preanger Sweets": "Red Preanger",
-  "Ijen Dawn": "Ijen Raung",
-  "Kerinci Breeze": "Kerinci",
-  "Sumatera Classic": "Lampung Jantan"
-};
-
-/* ================= STATE ================= */
-let summaryText = [];
-let bomName = "";
-let generatedTime = "";
-
-/* ================= UTIL ================= */
-function buildBoMName(d){
-  const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `BOM_${String(d.getDate()).padStart(2,"0")}-${m[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
-}
-
-function getSizeOptions(v){
-  return v==="Drip"
-    ? ["1pc","5","10"]
-    : ["18g","100","200","500"];
-}
-
-/* ================= UI ================= */
-function addRow(values=null){
-  const t=document.getElementById("planTable");
-  const r=t.insertRow(-1);
-  r.innerHTML=`
-    <td>
-      <select onchange="updateSize(this)">
-        <option>Beans</option>
-        <option>Ground</option>
-        <option>Drip</option>
-      </select>
-    </td>
-    <td><select></select></td>
-    <td>
-      <select>
-        ${Object.keys(products).map(p=>`<option>${p}</option>`).join("")}
-      </select>
-    </td>
-    <td><input type="number" value="1" min="1"></td>
-    <td>
-      <button onclick="copyRow(this)">📄</button>
-      <button onclick="this.parentElement.parentElement.remove()">❌</button>
-    </td>
-  `;
-  updateSize(r.cells[0].children[0]);
-
-  if(values){
-    r.cells[0].children[0].value = values.variant;
-    updateSize(r.cells[0].children[0]);
-    r.cells[1].children[0].value = values.size;
-    r.cells[2].children[0].value = values.product;
-    r.cells[3].children[0].value = values.qty;
+  } catch (err) {
+    return ContentService
+      .createTextOutput("ERROR: " + err.message)
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 }
-
-function copyRow(btn){
-  const r = btn.parentElement.parentElement;
-  addRow({
-    variant: r.cells[0].children[0].value,
-    size: r.cells[1].children[0].value,
-    product: r.cells[2].children[0].value,
-    qty: r.cells[3].children[0].value
-  });
-}
-
-function updateSize(sel){
-  const s = sel.parentElement.parentElement.cells[1].children[0];
-  s.innerHTML="";
-  getSizeOptions(sel.value).forEach(v=>{
-    const o=document.createElement("option");
-    o.value=v;
-    o.textContent=v;
-    s.appendChild(o);
-  });
-}
-
-addRow();
-
-/* ================= BOM ================= */
-function generateBOM(){
-  summaryText=[];
-  document.getElementById("summaryList").innerHTML="";
-
-  const now=new Date();
-  bomName=buildBoMName(now);
-  generatedTime=now.toLocaleString();
-
-  document.getElementById("bomName").textContent=bomName;
-  document.getElementById("generatedAt").textContent=generatedTime;
-
-  document.querySelectorAll("#planTable tr").forEach((r,i)=>{
-    if(i===0) return;
-    const v=r.cells[0].children[0].value;
-    const s=r.cells[1].children[0].value;
-    const p=r.cells[2].children[0].value;
-    const q=r.cells[3].children[0].value;
-    const line=`${v} ${s} – ${p} × ${q}`;
-    summaryText.push(line);
-    document.getElementById("summaryList").innerHTML+=`<li>${line}</li>`;
-  });
-}
-
-/* ================= SAVE (GET, SAFE) ================= */
-function saveBOM(){
-  if(!bomName){
-    alert("Generate BoM first");
-    return;
-  }
-
-  const params = new URLSearchParams({
-    bomName: bomName,
-    generatedAt: generatedTime,
-    summary: summaryText.join(" | "),
-    totalCost: "0"
-  });
-
-  const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
-  iframe.src = SCRIPT_URL + "?" + params.toString();
-  document.body.appendChild(iframe);
-
-  alert("BoM saved successfully ✅");
-}
-</script>
-
-</body>
-</html>
