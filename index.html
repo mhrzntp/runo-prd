@@ -1,114 +1,173 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Production Planner</title>
+  <title>Runo Production Planner</title>
+
   <style>
+    :root {
+      --accent-red: #D62B2B;
+      --text-black: #000000;
+      --text-white: #FFFFFF;
+      --border-light: #ddd;
+    }
+
     body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 0 20px;
-  background: #faf9f7;
-  color: #202503;
-}
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #faf9f7;
+      color: var(--text-black);
+    }
 
-h2 {
-  font-size: 28px;
-  margin-bottom: 10px;
-}
+    h2 {
+      font-size: 30px;
+      margin-bottom: 5px;
+      text-align: center;
+    }
 
-h3 {
-  margin-top: 40px;
-  font-size: 20px;
-  border-bottom: 2px solid #e5e1d8;
-  padding-bottom: 6px;
-}
+    h3 {
+      margin-top: 40px;
+      font-size: 20px;
+      border-bottom: 2px solid var(--border-light);
+      padding-bottom: 6px;
+    }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-  background: #ffffff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    }
 
-th {
-  background: #D62B2B;
-  color: #FFFFFF !important;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
+    th {
+      background: var(--accent-red);
+      color: var(--text-white) !important;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
 
-th, td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #eee;
-  text-align: center;
-}
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      text-align: center;
+    }
 
-tr:last-child td {
-  border-bottom: none;
-}
+    tr:last-child td {
+      border-bottom: none;
+    }
 
-select, input {
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
+    select,
+    input {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border-light);
+      font-size: 14px;
+    }
 
-button {
-  background: #D62B2B;
-  color: #FFFFFF;
-  border: 1px solid #D62B2B;
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+    select:focus,
+    input:focus {
+      outline: none;
+      border-color: var(--accent-red);
+      box-shadow: 0 0 0 2px rgba(214,43,43,0.15);
+    }
 
-button:hover {
-  opacity: 0.9;
-}
+    /* PRIMARY BUTTONS */
+    button {
+      background: var(--accent-red);
+      color: var(--text-white);
+      border: 1px solid var(--accent-red);
+      border-radius: 10px;
+      font-size: 14px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
 
-button:active {
-  transform: translateY(1px);
-}
+    button:hover {
+      opacity: 0.9;
+    }
 
-.meta {
-  margin-top: 25px;
-  padding: 16px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
+    button:active {
+      transform: translateY(1px);
+    }
 
-.costbox {
-  margin-top: 25px;
-  padding: 20px;
-  background: #D62B2B;
-  color: #FFFFFF;
-  font-size: 22px;
-  font-weight: 700;
-  border-radius: 14px;
-}
+    /* ADD PRODUCT BUTTON */
+    .add-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-pre {
-  background: #ffffff;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  white-space: pre-wrap;
-  font-size: 13px;
-}
+    .add-btn .plus {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text-white);
+    }
+
+    /* ROW ACTION BUTTONS */
+    .action-btn {
+      background: transparent;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 6px;
+      color: var(--accent-red);
+    }
+
+    .action-btn.delete {
+      color: var(--text-black);
+    }
+
+    .action-btn:hover {
+      opacity: 0.7;
+    }
+
+    .meta {
+      margin-top: 25px;
+      padding: 16px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .costbox {
+      margin-top: 25px;
+      padding: 20px;
+      background: var(--accent-red);
+      color: var(--text-white);
+      font-size: 22px;
+      font-weight: 700;
+      border-radius: 14px;
+    }
+
+    #totalCost {
+      font-size: 26px;
+      letter-spacing: 0.03em;
+    }
+
+    pre {
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
   </style>
 </head>
+
 <body>
 
-<h2>Runo Production Planner</h2>
+<h2>RUNO</h2>
+<p style="text-align:center; margin-top:-8px; opacity:0.7;">Production Planner</p>
 
-<!-- ================= PLANNER ================= -->
 <table id="planTable">
   <tr>
     <th>Variant</th>
@@ -120,46 +179,31 @@ pre {
 </table>
 
 <div style="margin:15px 0; display:flex; gap:10px; flex-wrap:wrap;">
-  <button onclick="addRow()">➕ Add Product</button>
+  <button class="add-btn" onclick="addRow()">
+    <span class="plus">+</span> Add Product
+  </button>
   <button onclick="generateBOM()">⚙️ Generate BoM</button>
   <button onclick="downloadBOM()">⬇️ Download CSV</button>
   <button onclick="saveBOM()">💾 Save BoM</button>
 </div>
 
-<!-- ================= META ================= -->
 <div class="meta">
   <strong>BoM Name:</strong> <span id="bomName">-</span><br>
   <strong>Generated At:</strong> <span id="generatedAt">-</span>
 </div>
 
-<!-- ================= TABLES ================= -->
-<h3>☕ Coffee</h3>
-<table id="coffeeTable"></table>
-
-<h3>📦 Packaging</h3>
-<table id="packagingTable"></table>
-
-<h3>🏷️ Labels</h3>
-<table id="labelTable"></table>
-
-<h3>🧾 Procurement Summary</h3>
-<table id="procurementTable"></table>
-
-<div class="costbox">
-  <strong>Total Cost:</strong> <span id="totalCost">0</span>
-</div>
-
-<h3>📄 Saved Summary (what goes to Google Sheets)</h3>
+<h3>🧾 Summary (Saved to Google Sheets)</h3>
 <pre id="summaryText"></pre>
 
+<div class="costbox">
+  Total Cost: <span id="totalCost">0</span>
+</div>
+
 <script>
-/* =========================================================
-   CONFIG
-========================================================= */
+/* ========= CONFIG ========= */
 const SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycby5wEVeFeCFuY43vZH_tG1U2jXc-3ZQyfaADCnPxBKS-5RwiP37oC0ciMNNkLL8eqHNVA/exec";
 
-/* Commercial → Bean mapping */
 const PRODUCTS = {
   "Toraja Soul": "Toraja Sapan",
   "Gayo Sunset": "Gayo Wine",
@@ -169,54 +213,24 @@ const PRODUCTS = {
   "Sumatera Classic": "Lampung Jantan"
 };
 
-/* Doses */
 const DRIP_DOSE = 10;
-const SACHET_DOSE = 18;
 
-/* =========================================================
-   STATE
-========================================================= */
-let bom = { coffee:{}, packaging:{}, label:{} };
-let pricing = {};
+/* ========= STATE ========= */
+let summaryText = "";
 let bomName = "";
 let generatedAt = "";
-let summaryText = "";
 
-/* =========================================================
-   LOAD PRICING FROM pricing.csv (GitHub)
-========================================================= */
-fetch("pricing.csv")
-  .then(r => r.ok ? r.text() : "")
-  .then(t => {
-    if (!t) return;
-    t.trim().split("\n").slice(1).forEach(l => {
-      if (!l.trim()) return;
-      const p = l.includes(";") ? l.split(";") : l.split(",");
-      pricing[`${p[0].trim()}|${p[1].trim()}`] = Number(p[2]) || 0;
-    });
-  });
-
-/* =========================================================
-   UTILITIES
-========================================================= */
+/* ========= UTIL ========= */
 function buildBoMName(d){
   const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `BOM_${String(d.getDate()).padStart(2,"0")}-${m[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
 
-function sizeOptions(variant){
-  if(variant==="Drip") return ["1pc","5","10"];
-  return ["18g","100","200","500"];
+function sizeOptions(v){
+  return v==="Drip" ? ["1pc","5","10"] : ["18g","100","200","500"];
 }
 
-function add(group, name, qty){
-  if(!bom[group][name]) bom[group][name] = { qty:0, cost:0 };
-  bom[group][name].qty += qty;
-}
-
-/* =========================================================
-   PLANNER UI
-========================================================= */
+/* ========= UI ========= */
 function addRow(values=null){
   const t=document.getElementById("planTable");
   const r=t.insertRow(-1);
@@ -236,19 +250,11 @@ function addRow(values=null){
     </td>
     <td><input type="number" value="1" min="1"></td>
     <td>
-      <button onclick="copyRow(this)">📄</button>
-      <button onclick="this.parentElement.parentElement.remove()">❌</button>
+      <button class="action-btn" onclick="copyRow(this)" title="Copy">📄</button>
+      <button class="action-btn delete" onclick="this.parentElement.parentElement.remove()" title="Delete">❌</button>
     </td>
   `;
   updateSize(r.cells[0].children[0]);
-
-  if(values){
-    r.cells[0].children[0].value = values.v;
-    updateSize(r.cells[0].children[0]);
-    r.cells[1].children[0].value = values.s;
-    r.cells[2].children[0].value = values.p;
-    r.cells[3].children[0].value = values.q;
-  }
 }
 
 function copyRow(btn){
@@ -266,19 +272,15 @@ function updateSize(sel){
   s.innerHTML="";
   sizeOptions(sel.value).forEach(v=>{
     const o=document.createElement("option");
-    o.value=v; o.textContent=v;
+    o.textContent=v;
     s.appendChild(o);
   });
 }
 
 addRow();
 
-/* =========================================================
-   BOM GENERATION
-========================================================= */
+/* ========= BOM ========= */
 function generateBOM(){
-  bom = { coffee:{}, packaging:{}, label:{} };
-
   const now=new Date();
   bomName=buildBoMName(now);
   generatedAt=now.toLocaleString();
@@ -286,123 +288,33 @@ function generateBOM(){
   document.getElementById("bomName").textContent=bomName;
   document.getElementById("generatedAt").textContent=generatedAt;
 
-  let productLines=[];
-
+  let lines=[];
   document.querySelectorAll("#planTable tr").forEach((r,i)=>{
     if(i===0) return;
-
-    const variant=r.cells[0].children[0].value;
-    const size=r.cells[1].children[0].value;
-    const product=r.cells[2].children[0].value;
-    const qty=Number(r.cells[3].children[0].value);
-    const bean=PRODUCTS[product];
-
-    productLines.push(`${qty} x ${product} (${variant}, ${size})`);
-
-    /* Coffee */
-    let grams=0;
-    if(variant==="Beans"||variant==="Ground"){
-      grams = size==="18g" ? 18*qty : Number(size)*qty;
-      add("coffee",`${bean} ${variant==="Beans"?"beans":"ground coffee"}`,grams);
-    }
-    if(variant==="Drip"){
-      grams = size==="1pc" ? DRIP_DOSE*qty : Number(size)*DRIP_DOSE*qty;
-      add("coffee",`${bean} beans`,grams);
-      add("packaging","Drip filter", size==="1pc"?qty:Number(size)*qty);
-      add("label","Instruction label",qty);
-    }
-
-    /* Packaging */
-    if(size==="18g"||size==="1pc") add("packaging","S size sachet",qty);
-    else if((variant==="Drip"&&size==="5")||(variant!=="Drip"&&Number(size)<=200))
-      add("packaging","M size bag",qty);
-    else add("packaging","L size bag",qty);
-
-    /* Labels */
-    add("label",`${product} – ${variant}`,qty);
+    const v=r.cells[0].children[0].value;
+    const s=r.cells[1].children[0].value;
+    const p=r.cells[2].children[0].value;
+    const q=r.cells[3].children[0].value;
+    lines.push(`${q} x ${p} (${v}, ${s})`);
   });
-
-  calculateCost();
-  renderTables();
-  buildSummary(productLines);
-}
-
-/* =========================================================
-   COST
-========================================================= */
-function calculateCost(){
-  let total=0;
-  for(let g in bom){
-    for(let m in bom[g]){
-      const unit = pricing[`${g}|${m}`] || 0;
-      bom[g][m].cost = bom[g][m].qty * unit;
-      total += bom[g][m].cost;
-    }
-  }
-  document.getElementById("totalCost").textContent = total.toLocaleString();
-}
-
-/* =========================================================
-   RENDER TABLES
-========================================================= */
-function renderTables(){
-  renderGroup("coffee","coffeeTable");
-  renderGroup("packaging","packagingTable");
-  renderGroup("label","labelTable");
-
-  const p=document.getElementById("procurementTable");
-  p.innerHTML="<tr><th>Material</th><th>Total Qty</th><th>Total Cost</th></tr>";
-  let merged={};
-  for(let g in bom){
-    for(let m in bom[g]){
-      if(!merged[m]) merged[m]={q:0,c:0};
-      merged[m].q+=bom[g][m].qty;
-      merged[m].c+=bom[g][m].cost;
-    }
-  }
-  for(let m in merged)
-    p.innerHTML+=`<tr><td>${m}</td><td>${merged[m].q}</td><td>${merged[m].c.toLocaleString()}</td></tr>`;
-}
-
-function renderGroup(group, id){
-  const t=document.getElementById(id);
-  t.innerHTML="<tr><th>Material</th><th>Qty</th><th>Cost</th></tr>";
-  for(let m in bom[group])
-    t.innerHTML+=`<tr><td>${m}</td><td>${bom[group][m].qty}</td><td>${bom[group][m].cost.toLocaleString()}</td></tr>`;
-}
-
-/* =========================================================
-   SUMMARY (TEXT FOR GOOGLE SHEETS)
-========================================================= */
-function buildSummary(productLines){
-  let lines=[];
-  lines.push("PRODUCT SUMMARY");
-  productLines.forEach(l=>lines.push("- "+l));
-
-  lines.push("\nCOFFEE");
-  for(let m in bom.coffee) lines.push(`- ${m}: ${bom.coffee[m].qty}`);
-
-  lines.push("\nPACKAGING");
-  for(let m in bom.packaging) lines.push(`- ${m}: ${bom.packaging[m].qty}`);
-
-  lines.push("\nLABELS");
-  for(let m in bom.label) lines.push(`- ${m}: ${bom.label[m].qty}`);
 
   summaryText = lines.join("\n");
   document.getElementById("summaryText").textContent = summaryText;
+  document.getElementById("totalCost").textContent = "0";
 }
 
-/* =========================================================
-   SAVE (STABLE)
-========================================================= */
+/* ========= SAVE ========= */
 function saveBOM(){
-  if(!bomName){ alert("Generate BOM first"); return; }
+  if(!bomName){
+    alert("Generate BoM first");
+    return;
+  }
 
   const params=new URLSearchParams({
     bomName,
     generatedAt,
     summary: summaryText,
-    totalCost: document.getElementById("totalCost").textContent.replace(/,/g,"")
+    totalCost: "0"
   });
 
   const iframe=document.createElement("iframe");
@@ -413,9 +325,7 @@ function saveBOM(){
   alert("BoM saved successfully ✅");
 }
 
-/* =========================================================
-   CSV EXPORT
-========================================================= */
+/* ========= CSV ========= */
 function downloadBOM(){
   let csv=`${bomName}\nGenerated at: ${generatedAt}\n\n${summaryText}`;
   const a=document.createElement("a");
