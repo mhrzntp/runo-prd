@@ -69,16 +69,17 @@ let pricing = {};
 let summaryText = [];
 let generatedTime = "";
 
-/* ===== AUTO LOAD PRICING FROM GITHUB ===== */
+/* ===== AUTO LOAD PRICING (COMMA + SEMICOLON SAFE) ===== */
 fetch("pricing.csv")
   .then(r => r.ok ? r.text() : "")
   .then(t => {
     if (!t) return;
     t.trim().split("\n").slice(1).forEach(l => {
-  const parts = l.includes(";") ? l.split(";") : l.split(",");
-  const [cat, mat, price] = parts.map(p => p.trim());
-  pricing[`${cat}|${mat}`] = Number(price) || 0;
-});
+      if (!l.trim()) return;
+      const parts = l.includes(";") ? l.split(";") : l.split(",");
+      const [cat, mat, price] = parts.map(p => p.trim());
+      pricing[`${cat}|${mat}`] = Number(price) || 0;
+    });
   });
 
 /* ===== SIZE OPTIONS ===== */
