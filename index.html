@@ -1,32 +1,336 @@
-function doGet(e) {
-  try {
-    const sheet = SpreadsheetApp
-      .getActiveSpreadsheet()
-      .getSheetByName("Records");
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Runo Production Planner</title>
+  <style>
+    body { font-family: Arial; max-width: 1200px; margin: 30px auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    select, input, button { padding: 5px; margin: 3px; }
+    h3 { margin-top: 30px; }
+    .meta { margin-top: 20px; padding: 15px; background: #f5f5f5; }
+    .costbox { margin-top: 20px; padding: 15px; background: #e8f5e9; }
+    pre { background:#fafafa; padding:10px; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
 
-    if (!sheet) {
-      throw new Error("Sheet 'Records' not found");
-    }
+<h2>Runo Production Planner</h2>
 
-    const bomName = e.parameter.bomName || "";
-    const generatedAt = e.parameter.generatedAt || "";
-    const summary = e.parameter.summary || "(no summary)";
-    const totalCost = Number(e.parameter.totalCost || 0);
+<!-- ================= PLANNER ================= -->
+<table id="planTable">
+  <tr>
+    <th>Variant</th>
+    <th>Size</th>
+    <th>Product</th>
+    <th>Qty</th>
+    <th>Action</th>
+  </tr>
+</table>
 
-    sheet.appendRow([
-      bomName,
-      generatedAt,
-      summary,
-      totalCost
-    ]);
+<button onclick="addRow()">➕ Add Product</button>
+<button onclick="generateBOM()">Generate BOM</button>
+<button onclick="downloadBOM()">Download BOM CSV</button>
+<button onclick="saveBOM()">💾 Save BoM</button>
 
-    return ContentService
-      .createTextOutput("OK")
-      .setMimeType(ContentService.MimeType.TEXT);
+<!-- ================= META ================= -->
+<div class="meta">
+  <strong>BoM Name:</strong> <span id="bomName">-</span><br>
+  <strong>Generated At:</strong> <span id="generatedAt">-</span>
+</div>
 
-  } catch (err) {
-    return ContentService
-      .createTextOutput("ERROR: " + err.message)
-      .setMimeType(ContentService.MimeType.TEXT);
+<!-- ================= TABLES ================= -->
+<h3>☕ Coffee</h3>
+<table id="coffeeTable"></table>
+
+<h3>📦 Packaging</h3>
+<table id="packagingTable"></table>
+
+<h3>🏷️ Labels</h3>
+<table id="labelTable"></table>
+
+<h3>🧾 Procurement Summary</h3>
+<table id="procurementTable"></table>
+
+<div class="costbox">
+  <strong>Total Cost:</strong> <span id="totalCost">0</span>
+</div>
+
+<h3>📄 Saved Summary (what goes to Google Sheets)</h3>
+<pre id="summaryText"></pre>
+
+<script>
+/* =========================================================
+   CONFIG
+========================================================= */
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycby5wEVeFeCFuY43vZH_tG1U2jXc-3ZQyfaADCnPxBKS-5RwiP37oC0ciMNNkLL8eqHNVA/exec";
+
+/* Commercial → Bean mapping */
+const PRODUCTS = {
+  "Toraja Soul": "Toraja Sapan",
+  "Gayo Sunset": "Gayo Wine",
+  "Preanger Sweets": "Red Preanger",
+  "Ijen Dawn": "Ijen Raung",
+  "Kerinci Breeze": "Kerinci",
+  "Sumatera Classic": "Lampung Jantan"
+};
+
+/* Doses */
+const DRIP_DOSE = 10;
+const SACHET_DOSE = 18;
+
+/* =========================================================
+   STATE
+========================================================= */
+let bom = { coffee:{}, packaging:{}, label:{} };
+let pricing = {};
+let bomName = "";
+let generatedAt = "";
+let summaryText = "";
+
+/* =========================================================
+   LOAD PRICING FROM pricing.csv (GitHub)
+========================================================= */
+fetch("pricing.csv")
+  .then(r => r.ok ? r.text() : "")
+  .then(t => {
+    if (!t) return;
+    t.trim().split("\n").slice(1).forEach(l => {
+      if (!l.trim()) return;
+      const p = l.includes(";") ? l.split(";") : l.split(",");
+      pricing[`${p[0].trim()}|${p[1].trim()}`] = Number(p[2]) || 0;
+    });
+  });
+
+/* =========================================================
+   UTILITIES
+========================================================= */
+function buildBoMName(d){
+  const m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `BOM_${String(d.getDate()).padStart(2,"0")}-${m[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+}
+
+function sizeOptions(variant){
+  if(variant==="Drip") return ["1pc","5","10"];
+  return ["18g","100","200","500"];
+}
+
+function add(group, name, qty){
+  if(!bom[group][name]) bom[group][name] = { qty:0, cost:0 };
+  bom[group][name].qty += qty;
+}
+
+/* =========================================================
+   PLANNER UI
+========================================================= */
+function addRow(values=null){
+  const t=document.getElementById("planTable");
+  const r=t.insertRow(-1);
+  r.innerHTML=`
+    <td>
+      <select onchange="updateSize(this)">
+        <option>Beans</option>
+        <option>Ground</option>
+        <option>Drip</option>
+      </select>
+    </td>
+    <td><select></select></td>
+    <td>
+      <select>
+        ${Object.keys(PRODUCTS).map(p=>`<option>${p}</option>`).join("")}
+      </select>
+    </td>
+    <td><input type="number" value="1" min="1"></td>
+    <td>
+      <button onclick="copyRow(this)">📄</button>
+      <button onclick="this.parentElement.parentElement.remove()">❌</button>
+    </td>
+  `;
+  updateSize(r.cells[0].children[0]);
+
+  if(values){
+    r.cells[0].children[0].value = values.v;
+    updateSize(r.cells[0].children[0]);
+    r.cells[1].children[0].value = values.s;
+    r.cells[2].children[0].value = values.p;
+    r.cells[3].children[0].value = values.q;
   }
 }
+
+function copyRow(btn){
+  const r=btn.parentElement.parentElement;
+  addRow({
+    v:r.cells[0].children[0].value,
+    s:r.cells[1].children[0].value,
+    p:r.cells[2].children[0].value,
+    q:r.cells[3].children[0].value
+  });
+}
+
+function updateSize(sel){
+  const s=sel.parentElement.parentElement.cells[1].children[0];
+  s.innerHTML="";
+  sizeOptions(sel.value).forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v; o.textContent=v;
+    s.appendChild(o);
+  });
+}
+
+addRow();
+
+/* =========================================================
+   BOM GENERATION
+========================================================= */
+function generateBOM(){
+  bom = { coffee:{}, packaging:{}, label:{} };
+
+  const now=new Date();
+  bomName=buildBoMName(now);
+  generatedAt=now.toLocaleString();
+
+  document.getElementById("bomName").textContent=bomName;
+  document.getElementById("generatedAt").textContent=generatedAt;
+
+  let productLines=[];
+
+  document.querySelectorAll("#planTable tr").forEach((r,i)=>{
+    if(i===0) return;
+
+    const variant=r.cells[0].children[0].value;
+    const size=r.cells[1].children[0].value;
+    const product=r.cells[2].children[0].value;
+    const qty=Number(r.cells[3].children[0].value);
+    const bean=PRODUCTS[product];
+
+    productLines.push(`${qty} x ${product} (${variant}, ${size})`);
+
+    /* Coffee */
+    let grams=0;
+    if(variant==="Beans"||variant==="Ground"){
+      grams = size==="18g" ? 18*qty : Number(size)*qty;
+      add("coffee",`${bean} ${variant==="Beans"?"beans":"ground coffee"}`,grams);
+    }
+    if(variant==="Drip"){
+      grams = size==="1pc" ? DRIP_DOSE*qty : Number(size)*DRIP_DOSE*qty;
+      add("coffee",`${bean} beans`,grams);
+      add("packaging","Drip filter", size==="1pc"?qty:Number(size)*qty);
+      add("label","Instruction label",qty);
+    }
+
+    /* Packaging */
+    if(size==="18g"||size==="1pc") add("packaging","S size sachet",qty);
+    else if((variant==="Drip"&&size==="5")||(variant!=="Drip"&&Number(size)<=200))
+      add("packaging","M size bag",qty);
+    else add("packaging","L size bag",qty);
+
+    /* Labels */
+    add("label",`${product} – ${variant}`,qty);
+  });
+
+  calculateCost();
+  renderTables();
+  buildSummary(productLines);
+}
+
+/* =========================================================
+   COST
+========================================================= */
+function calculateCost(){
+  let total=0;
+  for(let g in bom){
+    for(let m in bom[g]){
+      const unit = pricing[`${g}|${m}`] || 0;
+      bom[g][m].cost = bom[g][m].qty * unit;
+      total += bom[g][m].cost;
+    }
+  }
+  document.getElementById("totalCost").textContent = total.toLocaleString();
+}
+
+/* =========================================================
+   RENDER TABLES
+========================================================= */
+function renderTables(){
+  renderGroup("coffee","coffeeTable");
+  renderGroup("packaging","packagingTable");
+  renderGroup("label","labelTable");
+
+  const p=document.getElementById("procurementTable");
+  p.innerHTML="<tr><th>Material</th><th>Total Qty</th><th>Total Cost</th></tr>";
+  let merged={};
+  for(let g in bom){
+    for(let m in bom[g]){
+      if(!merged[m]) merged[m]={q:0,c:0};
+      merged[m].q+=bom[g][m].qty;
+      merged[m].c+=bom[g][m].cost;
+    }
+  }
+  for(let m in merged)
+    p.innerHTML+=`<tr><td>${m}</td><td>${merged[m].q}</td><td>${merged[m].c.toLocaleString()}</td></tr>`;
+}
+
+function renderGroup(group, id){
+  const t=document.getElementById(id);
+  t.innerHTML="<tr><th>Material</th><th>Qty</th><th>Cost</th></tr>";
+  for(let m in bom[group])
+    t.innerHTML+=`<tr><td>${m}</td><td>${bom[group][m].qty}</td><td>${bom[group][m].cost.toLocaleString()}</td></tr>`;
+}
+
+/* =========================================================
+   SUMMARY (TEXT FOR GOOGLE SHEETS)
+========================================================= */
+function buildSummary(productLines){
+  let lines=[];
+  lines.push("PRODUCT SUMMARY");
+  productLines.forEach(l=>lines.push("- "+l));
+
+  lines.push("\nCOFFEE");
+  for(let m in bom.coffee) lines.push(`- ${m}: ${bom.coffee[m].qty}`);
+
+  lines.push("\nPACKAGING");
+  for(let m in bom.packaging) lines.push(`- ${m}: ${bom.packaging[m].qty}`);
+
+  lines.push("\nLABELS");
+  for(let m in bom.label) lines.push(`- ${m}: ${bom.label[m].qty}`);
+
+  summaryText = lines.join("\n");
+  document.getElementById("summaryText").textContent = summaryText;
+}
+
+/* =========================================================
+   SAVE (STABLE)
+========================================================= */
+function saveBOM(){
+  if(!bomName){ alert("Generate BOM first"); return; }
+
+  const params=new URLSearchParams({
+    bomName,
+    generatedAt,
+    summary: summaryText,
+    totalCost: document.getElementById("totalCost").textContent.replace(/,/g,"")
+  });
+
+  const iframe=document.createElement("iframe");
+  iframe.style.display="none";
+  iframe.src = SCRIPT_URL + "?" + params.toString();
+  document.body.appendChild(iframe);
+
+  alert("BoM saved successfully ✅");
+}
+
+/* =========================================================
+   CSV EXPORT
+========================================================= */
+function downloadBOM(){
+  let csv=`${bomName}\nGenerated at: ${generatedAt}\n\n${summaryText}`;
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=`${bomName}.csv`;
+  a.click();
+}
+</script>
+
+</body>
+</html>
