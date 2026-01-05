@@ -31,7 +31,6 @@
 <button onclick="generateBOM()">Generate BOM</button>
 <button onclick="downloadBOM()">Download BOM (CSV)</button>
 <button onclick="downloadPricingTemplate()">Download Pricing Template</button>
-<input type="file" id="pricingFile" accept=".csv" onchange="loadPricing(this)" />
 
 <div class="meta">
   <strong>Generated at:</strong> <span id="generatedAt">-</span><br><br>
@@ -69,6 +68,17 @@ let bom = { coffee:{}, packaging:{}, label:{} };
 let pricing = {};
 let summaryText = [];
 let generatedTime = "";
+
+/* ===== AUTO LOAD PRICING FROM GITHUB ===== */
+fetch("pricing.csv")
+  .then(r => r.ok ? r.text() : "")
+  .then(t => {
+    if (!t) return;
+    t.trim().split("\n").slice(1).forEach(l => {
+      const [cat, mat, price] = l.split(",");
+      pricing[`${cat}|${mat}`] = Number(price) || 0;
+    });
+  });
 
 /* ===== SIZE OPTIONS ===== */
 function getSizeOptions(v) {
@@ -159,25 +169,11 @@ function generateBOM(){
     if(v==="Drip") add("label","Instruction label",q);
   });
 
+  calculateCost();
   renderAll();
 }
 
-/* ===== PRICING UPLOAD ===== */
-function loadPricing(input){
-  const file=input.files[0];
-  if(!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    pricing={};
-    e.target.result.trim().split("\n").slice(1).forEach(l=>{
-      const [cat,mat,price]=l.split(",");
-      pricing[`${cat}|${mat}`]=Number(price)||0;
-    });
-    calculateCost();
-  };
-  reader.readAsText(file);
-}
-
+/* ===== COST ===== */
 function calculateCost(){
   let totals={coffee:0,packaging:0,label:0};
   for(let g in bom){
